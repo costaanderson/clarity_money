@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planejamento Estratégico - Tiago Gomes Consultor</title>
+<link href="https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Rethink Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+
+:root {
+  --pink: #fe3e6d;
+  --dark: #1a1a1a;
+  --white: #ffffff;
+  --light-gray: #f5f5f5;
+  --medium-gray: #e0e0e0;
+  --text-gray: #666666;
+  --text-dark: #333333;
+  --accent-green: #00c9a7;
+  --accent-blue: #4a90d9;
+  --accent-orange: #ff8c42;
+  --accent-purple: #7c5cbf;
+  --font-title: 2.5rem;
+  --font-subtitle: 1.5rem;
+  --font-body: 1.1rem;
+  --font-label: 0.85rem;
+  --font-caption: 0.8rem;
+  --slide-padding-x: 80px;
+  --slide-padding-y: 60px;
+  --card-radius: 12px;
+  --chip-radius: 20px;
+  --transition-speed: 0.3s;
+}
+
+.deck { width: 100vw; height: 100vh; position: relative; }
+.slide {
+  width: 100%; height: 100%;
+  padding: var(--slide-padding-y) var(--slide-padding-x);
+  display: none; flex-direction: column; justify-content: center;
+  position: absolute; top: 0; left: 0; overflow: hidden;
+}
+.slide.active { display: flex; }
+.bg-white { background: var(--white); color: var(--dark); }
+.bg-dark { background: var(--dark); color: var(--white); }
+.bg-pink { background: var(--pink); color: var(--white); }
+.bg-light { background: var(--light-gray); color: var(--dark); }
+
+.progress-bar { position: fixed; top: 0; left: 0; width: 100%; height: 4px; background: var(--medium-gray); z-index: 100; }
+.progress-fill { height: 100%; background: var(--pink); transition: width var(--transition-speed) ease; }
+.slide-counter { position: fixed; bottom: 20px; right: 30px; font-size: var(--font-caption); color: #999; z-index: 100; }
+
+.section-label { font-size: var(--font-label); font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--pink); margin-bottom: 10px; }
+.bg-pink .section-label { color: rgba(255,255,255,0.7); }
+.accent-bar { width: 60px; height: 4px; background: var(--pink); margin: 15px 0 25px 0; border-radius: 2px; }
+.bg-pink .accent-bar { background: var(--white); }
+.accent-bar.center { margin-left: auto; margin-right: auto; }
+
+.slide-title { font-size: var(--font-title); font-weight: 700; line-height: 1.2; margin-bottom: 5px; }
+.slide-subtitle { font-size: var(--font-subtitle); font-weight: 600; line-height: 1.3; margin-bottom: 10px; }
+.slide-body { font-size: var(--font-body); font-weight: 400; line-height: 1.6; color: var(--text-dark); }
+.bg-dark .slide-body, .bg-pink .slide-body { color: rgba(255,255,255,0.85); }
+
+.tag { display: inline-block; padding: 4px 12px; border-radius: var(--chip-radius); font-size: var(--font-label); font-weight: 600; margin: 4px 4px 4px 0; }
+.tag-pink { background: rgba(254,62,109,0.15); color: var(--pink); }
+.tag-green { background: rgba(0,201,167,0.15); color: var(--accent-green); }
+.tag-blue { background: rgba(74,144,217,0.15); color: var(--accent-blue); }
+.tag-orange { background: rgba(255,140,66,0.15); color: var(--accent-orange); }
+.tag-purple { background: rgba(124,92,191,0.15); color: var(--accent-purple); }
+
+.card-grid { display: grid; gap: 20px; margin-top: 20px; }
+.card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.card-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.card { background: var(--white); border: 1px solid var(--medium-gray); border-radius: var(--card-radius); padding: 24px; }
+.card:nth-child(even) { background: var(--light-gray); border-color: transparent; }
+.card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; color: var(--dark); }
+.card p { font-size: 0.95rem; line-height: 1.5; color: var(--text-gray); }
+.card-metric { text-align: center; padding: 30px 24px; }
+.metric-value { font-size: 2.3rem; font-weight: 700; color: var(--pink); margin-bottom: 8px; }
+.metric-label { font-size: 0.9rem; color: var(--text-gray); font-weight: 500; }
+.card-highlight { border-left: 4px solid var(--pink); background: var(--white); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; margin-top: 20px; }
+.two-col.ratio-60-40 { grid-template-columns: 3fr 2fr; }
+
+.styled-list { list-style: none; padding: 0; margin-top: 15px; }
+.styled-list li { position: relative; padding-left: 24px; margin-bottom: 12px; line-height: 1.7; font-size: var(--font-body); }
+.styled-list li::before { content: ''; position: absolute; left: 0; top: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--pink); }
+
+.callout { display: flex; gap: 16px; background: var(--light-gray); border-left: 4px solid var(--pink); border-radius: 0 var(--card-radius) var(--card-radius) 0; padding: 20px 24px; margin-top: 20px; }
+.callout-icon { font-size: 1.5rem; flex-shrink: 0; }
+.callout-text { font-size: 1rem; line-height: 1.6; color: var(--text-dark); }
+.callout-text strong { color: var(--dark); }
+
+.step-list { margin-top: 20px; }
+.step { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
+.step-number { width: 36px; height: 36px; border-radius: 50%; background: var(--pink); color: var(--white); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+.step-content h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; color: var(--dark); }
+.step-content p { font-size: 0.95rem; color: var(--text-gray); line-height: 1.5; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+.chip { display: inline-flex; align-items: center; padding: 8px 18px; border-radius: var(--chip-radius); font-size: 0.9rem; font-weight: 600; }
+.chip-pink { background: var(--pink); color: var(--white); }
+.chip-blue { background: var(--accent-blue); color: var(--white); }
+.chip-green { background: var(--accent-green); color: var(--white); }
+.chip-orange { background: var(--accent-orange); color: var(--white); }
+.chip-purple { background: var(--accent-purple); color: var(--white); }
+
+.agenda-list { margin-top: 10px; }
+.agenda-item { display: flex; align-items: center; gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--medium-gray); }
+.agenda-item:last-child { border-bottom: none; }
+.agenda-number { font-size: 1.5rem; font-weight: 700; color: var(--pink); min-width: 40px; }
+.agenda-title { font-size: 1.2rem; font-weight: 500; color: var(--text-dark); }
+
+.data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.92rem; }
+.data-table thead th { background: var(--dark); color: var(--white); padding: 12px 16px; text-align: left; font-weight: 600; font-size: var(--font-label); text-transform: uppercase; letter-spacing: 1px; }
+.data-table thead th:first-child { border-radius: var(--card-radius) 0 0 0; }
+.data-table thead th:last-child { border-radius: 0 var(--card-radius) 0 0; }
+.data-table tbody td { padding: 12px 16px; border-bottom: 1px solid var(--medium-gray); color: var(--text-dark); }
+.data-table tbody tr:nth-child(even) { background: var(--light-gray); }
+
+.export-btn { position: fixed; bottom: 20px; left: 30px; background: var(--pink); color: var(--white); border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: 'Rethink Sans', sans-serif; font-size: var(--font-caption); font-weight: 600; z-index: 100; }
+.export-btn:hover { opacity: 0.85; }
+.text-center { text-align: center; }
+.mt-20 { margin-top: 20px; }
+
+.quote-slide { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 100%; }
+.quote-text { font-size: 2rem; font-weight: 700; line-height: 1.35; max-width: 900px; }
+.quote-author { font-size: 1rem; margin-top: 20px; color: rgba(255,255,255,0.8); }
+
+@media (max-width: 768px) {
+  .slide { padding: 30px 40px; }
+  .slide-title { font-size: 1.8rem; }
+  .card-grid.cols-3, .card-grid.cols-2 { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; gap: 20px; }
+}
+@media print {
+  .slide { page-break-after: always; display: flex !important; position: relative; height: auto; min-height: 100vh; }
+  .progress-bar, .slide-counter, .export-btn { display: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+<div class="slide-counter" id="counter"></div>
+<button class="export-btn" id="export-pptx">Exportar PPTX</button>
+
+<div class="deck" id="deck">
+
+<!-- 1. TITLE -->
+<div class="slide bg-dark active">
+  <div class="section-label" style="color:#fff;">CORA CONECTA</div>
+  <h1 class="slide-title">Planejamento Estratégico<br>Tiago Gomes Consultor</h1>
+  <div class="accent-bar"></div>
+  <p style="color:#999; font-size:1.1rem;">Estratégia de aquisição de clientes PF via Instagram e WhatsApp</p>
+  <p style="color:#666; font-size:0.9rem; margin-top:40px;">Julho 2026</p>
+</div>
+
+<!-- 2. AGENDA -->
+<div class="slide bg-white">
+  <div class="section-label">AGENDA</div>
+  <h1 class="slide-title">O que vamos ver</h1>
+  <div class="accent-bar"></div>
+  <div class="agenda-list">
+    <div class="agenda-item"><span class="agenda-number">01</span><span class="agenda-title">Diagnóstico e desafio</span></div>
+    <div class="agenda-item"><span class="agenda-number">02</span><span class="agenda-title">Objetivo e métrica-chave</span></div>
+    <div class="agenda-item"><span class="agenda-number">03</span><span class="agenda-title">Plano de 3 fases (3–6 meses)</span></div>
+    <div class="agenda-item"><span class="agenda-number">04</span><span class="agenda-title">Instagram: boas práticas e conteúdo</span></div>
+    <div class="agenda-item"><span class="agenda-number">05</span><span class="agenda-title">Profissionalização do WhatsApp</span></div>
+    <div class="agenda-item"><span class="agenda-number">06</span><span class="agenda-title">Próximos passos</span></div>
+  </div>
+</div>
+
+<!-- 3. TRANSITION - DIAGNOSTICO -->
+<div class="slide bg-dark">
+  <div style="font-size:5rem; font-weight:700; color:rgba(255,255,255,0.15); position:absolute; top:60px; left:80px;">01</div>
+  <h1 class="slide-title" style="margin-top:60px;">Diagnóstico</h1>
+  <div class="accent-bar"></div>
+  <p class="slide-body">Entendendo quem é o Tiago e onde realmente está o gargalo do negócio dele.</p>
+</div>
+
+<!-- 4. SOBRE O TIAGO -->
+<div class="slide bg-white">
+  <div class="section-label">QUEM É O TIAGO</div>
+  <h1 class="slide-title">Planejador financeiro com abordagem comportamental</h1>
+  <div class="accent-bar"></div>
+  <p class="slide-body">Quase 10 anos de atuação. Opera completamente solo — cuida de prospecção, atendimento e conteúdo. Atende pessoas físicas (maioria, preferência declarada) e pequenos negócios. O diferencial: olha para os aspectos emocionais e comportamentais por trás do dinheiro, funcionando como um "personal trainer financeiro".</p>
+  <div class="chips">
+    <span class="chip chip-pink">Solo absoluto</span>
+    <span class="chip chip-blue">~10 anos de atuação</span>
+    <span class="chip chip-green">25 clientes (17 PF + 8 PJ)</span>
+    <span class="chip chip-orange">Conversão de 80–90%</span>
+  </div>
+</div>
+
+<!-- 5. QUOTE -->
+<div class="slide bg-pink">
+  <div class="quote-slide">
+    <div class="quote-text">"Quem comanda meu comercial são meus clientes, não eu."</div>
+    <div class="quote-author">— Tiago Gomes</div>
+  </div>
+</div>
+
+<!-- 6. ONDE ESTÁ O GARGALO -->
+<div class="slide bg-white">
+  <div class="section-label">O GARGALO REAL</div>
+  <h1 class="slide-title">Não é fechamento. É volume de entrada.</h1>
+  <div class="accent-bar"></div>
+  <div class="two-col">
+    <div>
+      <p class="slide-body">A taxa de conversão do Tiago é altíssima (80–90%): quem chega, fecha. O problema está no topo do funil — a quantidade de conversas iniciais é inconsistente. Tem meses com vários clientes novos, tem meses com nenhum.</p>
+    </div>
+    <div class="callout" style="margin-top:0;">
+      <div class="callout-icon">💡</div>
+      <div class="callout-text"><strong>O objetivo não é vender melhor</strong> — é fazer mais gente chegar até a conversa.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. RESTRIÇÕES -->
+<div class="slide bg-white">
+  <div class="section-label">RESTRIÇÕES-CHAVE</div>
+  <h1 class="slide-title">O que qualquer solução precisa respeitar</h1>
+  <div class="accent-bar"></div>
+  <div class="card-grid cols-3">
+    <div class="card">
+      <h3>Serviço de alta confiança</h3>
+      <p>Não é produto de prateleira. A venda exige relação — soluções que ignoram isso não vão colar.</p>
+    </div>
+    <div class="card">
+      <h3>Solo absoluto</h3>
+      <p>Qualquer ação precisa ser executável por uma pessoa só, sem equipe. Complexidade operacional é barreira real.</p>
+    </div>
+    <div class="card">
+      <h3>Pensar no negócio compete com atender</h3>
+      <p>No dia a dia, o operacional consome o espaço de pensar estratégicamente. Menos fricção, mais adoção.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 8. TRANSITION - OBJETIVO -->
+<div class="slide bg-dark">
+  <div style="font-size:5rem; font-weight:700; color:rgba(255,255,255,0.15); position:absolute; top:60px; left:80px;">02</div>
+  <h1 class="slide-title" style="margin-top:60px;">Objetivo e métrica-chave</h1>
+  <div class="accent-bar"></div>
+  <p class="slide-body">O que estamos tentando resolver, e como saber se está funcionando.</p>
+</div>
+
+<!-- 9. OBJETIVO -->
+<div class="slide bg-white">
+  <div class="section-label">OBJETIVO CENTRAL</div>
+  <h1 class="slide-title">Transformar indicação imprevisível em sistema de geração de conversas</h1>
+  <div class="accent-bar"></div>
+  <p class="slide-body" style="max-width:700px;">Sem depender de sorte, e sem aumentar a carga operacional de um profissional que atua sozinho.</p>
+  <div class="card card-metric card-highlight" style="max-width:420px; margin-top:30px;">
+    <div class="metric-value">Conversas / mês</div>
+    <div class="metric-label">Métrica-chave — não clientes fechados. O fechamento já está resolvido (80–90%); o que falta é entrada.</div>
+  </div>
+</div>
+
+<!-- 10. TRANSITION - FASES -->
+<div class="slide bg-dark">
+  <div style="font-size:5rem; font-weight:700; color:rgba(255,255,255,0.15); position:absolute; top:60px; left:80px;">03</div>
+  <h1 class="slide-title" style="margin-top:60px;">Plano de 3 fases</h1>
+  <div class="accent-bar"></div>
+  <p class="slide-body">Horizonte de 3 a 6 meses. Cada fase só avança se a anterior for validada.</p>
+</div>
+
+<!-- 11. FASE 1 -->
+<div class="slide bg-white">
+  <div class="section-label">FASE 1 · MÊS 1–2</div>
+  <h1 class="slide-title">Fundação: fechar o vazamento óbvio</h1>
+  <div class="accent-bar"></div>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-number">1</div>
+      <div class="step-content"><h4>Profissionalizar o WhatsApp Business</h4><p>Foto, nome, categoria e mensagens automáticas — base de tudo que chega via Instagram e ebook.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">2</div>
+      <div class="step-content"><h4>Stories diários com CTA</h4><p>Repost do reels que ele já grava — custo zero de produção extra.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">3</div>
+      <div class="step-content"><h4>Ebook/conteúdo rico como isca</h4><p>Entrega automática via WhatsApp, sem exigir atendimento manual.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">4</div>
+      <div class="step-content"><h4>Indicação sistematizada</h4><p>Mensagem-padrão em momentos-gatilho, como uma vitória do cliente.</p></div>
+    </div>
+  </div>
+  <div class="callout"><div class="callout-icon">🎯</div><div class="callout-text"><strong>Meta da fase:</strong> validar que o funil conteúdo → WhatsApp → conversa funciona, sem tráfego pago.</div></div>
+</div>
+
+<!-- 12. FASE 2 -->
+<div class="slide bg-white">
+  <div class="section-label">FASE 2 · MÊS 2–4</div>
+  <h1 class="slide-title">Nutrição e escala leve</h1>
+  <div class="accent-bar"></div>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-number">1</div>
+      <div class="step-content"><h4>Canal de transmissão no WhatsApp</h4><p>Nutrição semanal reaproveitando o conteúdo do reels — sem exposição, sem moderação.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">2</div>
+      <div class="step-content"><h4>Evento de comunidade próxima</h4><p>Café ou happy hour com clientes atuais + convidados — reproduz em pequena escala o que já funciona (relação pessoal).</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">3</div>
+      <div class="step-content"><h4>Parcerias com terapeutas/coaches</h4><p>Lead pré-aquecido pela confiança no profissional que indica. Zero custo, só relacionamento.</p></div>
+    </div>
+  </div>
+  <div class="callout"><div class="callout-icon">🎯</div><div class="callout-text"><strong>Meta da fase:</strong> aumentar conversas mês a mês, sem depender só do alcance do reels.</div></div>
+</div>
+
+<!-- 13. FASE 3 -->
+<div class="slide bg-white">
+  <div class="section-label">FASE 3 · MÊS 4–6</div>
+  <h1 class="slide-title">Amplificação — só depois do funil provado</h1>
+  <div class="accent-bar"></div>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-number">1</div>
+      <div class="step-content"><h4>Teste de tráfego pago (budget pequeno)</h4><p>Impulsionar o conteúdo de isca, não o reels genérico — direcionado à rede próxima já validada.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">2</div>
+      <div class="step-content"><h4>Live ou workshop pontual</h4><p>Gera picos de entrada previsíveis, sem depender do algoritmo.</p></div>
+    </div>
+  </div>
+  <div class="callout"><div class="callout-icon">⚠️</div><div class="callout-text">Fase 3 só entra <strong>se</strong> as fases 1 e 2 mostrarem que o funil converte. Tráfego pago para um serviço de alta confiança pode trazer lead frio demais sem essa validação prévia.</div></div>
+</div>
+
+<!-- 14. TRANSITION - INSTAGRAM -->
+<div class="slide bg-dark">
+  <div style="font-size:5rem; font-weight:700; color:rgba(255,255,255,0.15); position:absolute; top:60px; left:80px;">04</div>
+  <h1 class="slide-title" style="margin-top:60px;">Instagram: boas práticas e conteúdo</h1>
+  <div class="accent-bar"></div>
+  <p class="slide-body">@tiagogomesconsultor — o motor de todo o funil que desenhamos.</p>
+</div>
+
+<!-- 15. DIAGNOSTICO INSTAGRAM -->
+<div class="slide bg-white">
+  <div class="section-label">DIAGNÓSTICO DO PERFIL</div>
+  <h1 class="slide-title">O que já funciona, o que falta</h1>
+  <div class="accent-bar"></div>
+  <div class="two-col">
+    <div>
+      <p class="slide-body">1 reels por dia há quase 1 ano — constância rara e valiosa, não mexer nisso. O que falta: uso de stories (hoje zero), CTA de conversão nas peças, e destaques estratégicos que sirvam de vitrine.</p>
+    </div>
+    <div class="callout" style="margin-top:0;">
+      <div class="callout-icon">💡</div>
+      <div class="callout-text">O gargalo não é alcance — é <strong>conversão do que já é visto</strong>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 16. PILARES DE CONTEUDO -->
+<div class="slide bg-white">
+  <div class="section-label">CONSTRUÇÃO DE CONTEÚDO</div>
+  <h1 class="slide-title">Pilares de conteúdo</h1>
+  <div class="accent-bar"></div>
+  <div class="chips">
+    <span class="chip chip-pink">Educação técnica</span>
+    <span class="chip chip-blue">Comportamental</span>
+    <span class="chip chip-green">Prova social</span>
+    <span class="chip chip-orange">Autoridade pessoal</span>
+  </div>
+  <ul class="styled-list mt-20">
+    <li><strong>Educação técnica</strong> — organização financeira, dívidas, reservas (o que ele já faz bem)</li>
+    <li><strong>Comportamental</strong> — o diferencial real dele; pouca gente no nicho fala com essa profundidade</li>
+    <li><strong>Prova social</strong> — cases e transformações, sempre com consentimento explícito do cliente</li>
+    <li><strong>Autoridade pessoal</strong> — quem é Tiago, por que une terapia e finanças</li>
+  </ul>
+</div>
+
+<!-- 17. PAPEL DE CADA FORMATO -->
+<div class="slide bg-white">
+  <div class="section-label">FUNIL NO INSTAGRAM</div>
+  <h1 class="slide-title">Papel de cada formato</h1>
+  <div class="accent-bar"></div>
+  <table class="data-table">
+    <thead><tr><th>Formato</th><th>Papel hoje</th><th>Papel proposto</th></tr></thead>
+    <tbody>
+      <tr><td>Reels (feed)</td><td>Alcance</td><td>Alcance + atrair pra story</td></tr>
+      <tr><td>Stories</td><td>Não usado</td><td>Conversão — repost do reels + CTA</td></tr>
+      <tr><td>Destaques</td><td>Não usado</td><td>Vitrine permanente (ebook, metodologia)</td></tr>
+      <tr><td>Legenda</td><td>Subaproveitada</td><td>CTA de pergunta aberta</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 18. BOAS PRATICAS DE EXECUCAO -->
+<div class="slide bg-white">
+  <div class="section-label">BOAS PRÁTICAS</div>
+  <h1 class="slide-title">Execução dos reels e stories</h1>
+  <div class="accent-bar"></div>
+  <div class="card-grid cols-3">
+    <div class="card">
+      <h3>Hook nos 3 primeiros segundos</h3>
+      <p>Pergunta, afirmação ou curiosidade — decide se a pessoa continua assistindo.</p>
+    </div>
+    <div class="card">
+      <h3>CTA de palavra-chave</h3>
+      <p>"Comenta X pra receber" — facilita automação futura de resposta no WhatsApp.</p>
+    </div>
+    <div class="card">
+      <h3>Formatos que geram salvamento</h3>
+      <p>Carrosséis educativos, listas, "antes e depois" — o que o algoritmo mais recompensa.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 19. CADENCIA POR FASE -->
+<div class="slide bg-white">
+  <div class="section-label">CADÊNCIA</div>
+  <h1 class="slide-title">Ritmo de publicação por fase</h1>
+  <div class="accent-bar"></div>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-number">1</div>
+      <div class="step-content"><h4>Fase 1 (mês 1–2)</h4><p>Manter 1 reels/dia + repost em story todo dia com CTA + criar 3–4 destaques fixos.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">2</div>
+      <div class="step-content"><h4>Fase 2 (mês 2–4)</h4><p>1x/semana formato de prova social + convite pro canal de transmissão via story.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">3</div>
+      <div class="step-content"><h4>Fase 3 (mês 4–6)</h4><p>Usar os reels de melhor performance como base para impulsionamento pago.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- 20. CUIDADOS DE TOM -->
+<div class="slide bg-white">
+  <div class="section-label">TEMA SENSÍVEL</div>
+  <h1 class="slide-title">Boas práticas de tom</h1>
+  <div class="accent-bar"></div>
+  <ul class="styled-list">
+    <li>Nunca expor números ou situações identificáveis de clientes, mesmo em prova social</li>
+    <li>Manter no nível emocional/processo, não em dado financeiro específico</li>
+    <li>Evitar julgamento ("você está errado em gastar assim") — manter tom de personal trainer, não de crítica</li>
+  </ul>
+</div>
+
+<!-- 21. METRICA DE ACOMPANHAMENTO -->
+<div class="slide bg-white">
+  <div class="section-label">COMO MEDIR</div>
+  <h1 class="slide-title">Métrica de acompanhamento</h1>
+  <div class="accent-bar"></div>
+  <div class="two-col">
+    <div class="card card-metric card-highlight">
+      <div class="metric-value">Story → WhatsApp</div>
+      <div class="metric-label">Taxa de saída do story pro link/DM — não curtidas ou alcance</div>
+    </div>
+    <div class="callout" style="margin-top:0;">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-text">Pedir os <strong>Insights reais</strong> do Tiago antes de travar metas numéricas de alcance, comentários ou saves — evita meta arbitrária sem baseline real.</div>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSITION - WHATSAPP -->
+<div class="slide bg-dark">
+  <div style="font-size:5rem; font-weight:700; color:rgba(255,255,255,0.15); position:absolute; top:60px; left:80px;">05</div>
+  <h1 class="slide-title" style="margin-top:60px;">Profissionalização do WhatsApp</h1>
+  <div class="accent-bar"></div>
+  <p class="slide-body">Hoje é WhatsApp comum, sem foto e sem estrutura. É a porta de entrada de todo o funil que desenhamos — precisa passar confiança.</p>
+</div>
+
+<!-- WHATSAPP - DIAGNOSTICO -->
+<div class="slide bg-white">
+  <div class="section-label">DIAGNÓSTICO</div>
+  <h1 class="slide-title">Por que isso importa pro funil</h1>
+  <div class="accent-bar"></div>
+  <div class="two-col">
+    <div>
+      <p class="slide-body">Todo o funil desenhado — ebook, CTA de story, canal de transmissão — termina no WhatsApp. Se a primeira impressão ali for de um número pessoal sem identidade, o lead que chegou aquecido pelo conteúdo pode hesitar antes de continuar a conversa.</p>
+    </div>
+    <div class="callout" style="margin-top:0;">
+      <div class="callout-icon">💡</div>
+      <div class="callout-text">O WhatsApp é o <strong>ponto de conversão final</strong> do funil — merece o mesmo cuidado de identidade que o Instagram.</div>
+    </div>
+  </div>
+</div>
+
+<!-- WHATSAPP - MIGRACAO E PERFIL -->
+<div class="slide bg-white">
+  <div class="section-label">CONFIGURAÇÃO BÁSICA</div>
+  <h1 class="slide-title">Migrar para o WhatsApp Business</h1>
+  <div class="accent-bar"></div>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-number">1</div>
+      <div class="step-content"><h4>Migrar do WhatsApp comum para o Business</h4><p>Gratuito, mantém o número e o histórico de conversas — só habilita recursos comerciais.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">2</div>
+      <div class="step-content"><h4>Foto de perfil profissional</h4><p>Foto do próprio Tiago (não logo genérico) — reforça a relação pessoal que é a essência do trabalho dele.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">3</div>
+      <div class="step-content"><h4>Nome comercial e categoria</h4><p>Nome de exibição consistente com o Instagram + categoria "Consultoria financeira" no perfil comercial.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-number">4</div>
+      <div class="step-content"><h4>Descrição (bio) e horário de atendimento</h4><p>Poucas linhas: o que ele faz, pra quem, e quando responde — evita expectativa de resposta 24h para um solo.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- WHATSAPP - RECURSOS COMERCIAIS -->
+<div class="slide bg-white">
+  <div class="section-label">RECURSOS DO BUSINESS</div>
+  <h1 class="slide-title">O que usar no dia a dia</h1>
+  <div class="accent-bar"></div>
+  <div class="card-grid cols-3">
+    <div class="card">
+      <h3>Catálogo</h3>
+      <p>Serviços listados com descrição curta — reforça profissionalismo sem exigir atendimento manual antes da conversa.</p>
+    </div>
+    <div class="card">
+      <h3>Mensagens automáticas</h3>
+      <p>Saudação para novos contatos + mensagem de ausência fora do horário. Reduz a sensação de "estou sozinho aqui".</p>
+    </div>
+    <div class="card">
+      <h3>Respostas rápidas</h3>
+      <p>Atalhos para perguntas recorrentes (ex: entrega do ebook, agendamento) — poupa tempo de digitação repetitiva.</p>
+    </div>
+  </div>
+  <div class="callout"><div class="callout-icon">🏷️</div><div class="callout-text"><strong>Etiquetas (labels):</strong> organizar contatos por estágio (Novo lead, Ebook enviado, Conversa agendada, Cliente) — dá visibilidade de funil sem precisar de CRM, respeitando a restrição de solo absoluto.</div></div>
+</div>
+
+<!-- WHATSAPP - LINK NA ESTRATEGIA -->
+<div class="slide bg-white">
+  <div class="section-label">INTEGRAÇÃO COM O FUNIL</div>
+  <h1 class="slide-title">Conectando ao Instagram e ao ebook</h1>
+  <div class="accent-bar"></div>
+  <ul class="styled-list">
+    <li>Link direto (wa.me) com mensagem pré-preenchida na bio do Instagram e nos CTAs de story</li>
+    <li>Mesmo link usado na entrega automática do ebook, criando uma porta de entrada única e rastreável</li>
+    <li>Foto e nome consistentes entre Instagram e WhatsApp — reduz a sensação de "número desconhecido" pra quem chega pelo funil</li>
+  </ul>
+</div>
+
+<!-- TRANSITION - PROXIMOS PASSOS -->
+<div class="slide bg-dark">
+  <div style="font-size:5rem; font-weight:700; color:rgba(255,255,255,0.15); position:absolute; top:60px; left:80px;">06</div>
+  <h1 class="slide-title" style="margin-top:60px;">Próximos passos</h1>
+  <div class="accent-bar"></div>
+</div>
+
+<!-- 23. PROXIMOS PASSOS -->
+<div class="slide bg-white">
+  <div class="section-label">PRÓXIMOS PASSOS</div>
+  <h1 class="slide-title">Para colocar o plano em movimento</h1>
+  <div class="accent-bar"></div>
+  <div class="step-list">
+    <div class="step"><div class="step-number">1</div><div class="step-content"><h4>Validar objetivo e fases com o Tiago</h4></div></div>
+    <div class="step"><div class="step-number">2</div><div class="step-content"><h4>Migrar e profissionalizar o WhatsApp Business</h4></div></div>
+    <div class="step"><div class="step-number">3</div><div class="step-content"><h4>Coletar Insights reais do Instagram (baseline)</h4></div></div>
+    <div class="step"><div class="step-number">4</div><div class="step-content"><h4>Produzir ebook/isca e fluxo de automação no WhatsApp</h4></div></div>
+    <div class="step"><div class="step-number">5</div><div class="step-content"><h4>Iniciar Fase 1</h4></div></div>
+  </div>
+</div>
+
+<!-- 24. CLOSING -->
+<div class="slide bg-dark">
+  <h1 class="slide-title text-center" style="width:100%;">Obrigado!</h1>
+  <div class="accent-bar center"></div>
+  <p style="color:#999; text-align:center; width:100%;">Cora Conecta · Planejamento Estratégico — Tiago Gomes Consultor</p>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgenjs.bundle.js"></script>
+<script>
+(function() {
+  'use strict';
+  const CONFIG = { transitionDuration: 300, swipeThreshold: 50 };
+  const COLORS = { PINK:'FE3E6D', DARK:'1A1A1A', WHITE:'FFFFFF', LIGHT_GRAY:'F5F5F5', MEDIUM_GRAY:'E0E0E0', TEXT_GRAY:'666666', TEXT_DARK:'333333', GREEN:'00C9A7', BLUE:'4A90D9', ORANGE:'FF8C42', PURPLE:'7C5CBF' };
+  const FONT = 'Rethink Sans';
+  let currentSlide = 0, touchStartX = 0, touchStartY = 0, isTransitioning = false;
+  const slides = document.querySelectorAll('.slide');
+  const progressFill = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  const totalSlides = slides.length;
+
+  function showSlide(index) {
+    if (isTransitioning || index === currentSlide || index < 0 || index >= totalSlides) return;
+    isTransitioning = true;
+    slides[currentSlide].classList.remove('active');
+    currentSlide = index;
+    slides[currentSlide].classList.add('active');
+    updateProgress(); updateCounter();
+    setTimeout(() => { isTransitioning = false; }, CONFIG.transitionDuration);
+  }
+  function nextSlide(){ showSlide(currentSlide+1); }
+  function prevSlide(){ showSlide(currentSlide-1); }
+  function firstSlide(){ showSlide(0); }
+  function lastSlide(){ showSlide(totalSlides-1); }
+  function updateProgress(){ if(progressFill) progressFill.style.width = ((currentSlide+1)/totalSlides*100)+'%'; }
+  function updateCounter(){ if(counter) counter.textContent = (currentSlide+1)+' / '+totalSlides; }
+
+  document.addEventListener('keydown', function(e){
+    switch(e.key){
+      case 'ArrowRight': case ' ': case 'PageDown': e.preventDefault(); nextSlide(); break;
+      case 'ArrowLeft': case 'PageUp': e.preventDefault(); prevSlide(); break;
+      case 'Home': e.preventDefault(); firstSlide(); break;
+      case 'End': e.preventDefault(); lastSlide(); break;
+      case 'f': case 'F': e.preventDefault();
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+        else document.exitFullscreen();
+        break;
+      case 'Escape': if (document.fullscreenElement) document.exitFullscreen(); break;
+    }
+  });
+  document.addEventListener('touchstart', function(e){ touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    const dx = touchStartX - e.changedTouches[0].clientX;
+    const dy = touchStartY - e.changedTouches[0].clientY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > CONFIG.swipeThreshold) { dx > 0 ? nextSlide() : prevSlide(); }
+  }, {passive:true});
+
+  function pptxAddTitle(slide, text, opts){ slide.addText(text, Object.assign({x:0.8,y:0.5,w:8.4,h:0.8,fontSize:24,fontFace:FONT,color:COLORS.DARK,bold:true}, opts)); }
+  function pptxAddSubtitle(slide, text, opts){ slide.addText(text, Object.assign({x:0.8,y:1.4,w:8.4,h:0.5,fontSize:14,fontFace:FONT,color:COLORS.TEXT_GRAY}, opts)); }
+  function pptxAddAccentBar(slide, y){ slide.addShape('rect', {x:0.8,y:y||1.3,w:0.8,h:0.06,fill:{color:COLORS.PINK}}); }
+  function pptxAddSectionLabel(slide, text, opts){ slide.addText(text.toUpperCase(), Object.assign({x:0.8,y:0.3,w:6,h:0.3,fontSize:10,fontFace:FONT,color:COLORS.PINK,bold:true,charSpacing:2}, opts)); }
+  function pptxAddBody(slide, text, opts){ slide.addText(text, Object.assign({x:0.8,y:2.0,w:8.4,h:2.8,fontSize:12,fontFace:FONT,color:COLORS.TEXT_DARK,lineSpacing:18,valign:'top'}, opts)); }
+  function pptxAddCard(slide,x,y,w,h,title,body,bgColor){
+    slide.addShape('roundRect', {x,y,w,h,fill:{color:bgColor||COLORS.LIGHT_GRAY},rectRadius:0.1});
+    if(title) slide.addText(title, {x:x+0.2,y:y+0.15,w:w-0.4,h:0.5,fontSize:12,fontFace:FONT,color:COLORS.DARK,bold:true});
+    if(body) slide.addText(body, {x:x+0.2,y:y+0.65,w:w-0.4,h:h-0.85,fontSize:10,fontFace:FONT,color:COLORS.TEXT_GRAY,lineSpacing:14,valign:'top'});
+  }
+  function pptxAddStep(slide,x,y,number,title,description){
+    slide.addShape('ellipse', {x,y,w:0.35,h:0.35,fill:{color:COLORS.PINK}});
+    slide.addText(String(number), {x,y,w:0.35,h:0.35,fontSize:11,fontFace:FONT,color:COLORS.WHITE,bold:true,align:'center',valign:'middle'});
+    slide.addText(title, {x:x+0.5,y:y-0.02,w:8.0,h:0.3,fontSize:12,fontFace:FONT,color:COLORS.DARK,bold:true});
+    if(description) slide.addText(description, {x:x+0.5,y:y+0.28,w:8.0,h:0.35,fontSize:10,fontFace:FONT,color:COLORS.TEXT_GRAY});
+  }
+
+  function generatePptx(){
+    if (typeof PptxGenJS === 'undefined') { alert('PptxGenJS não carregado.'); return; }
+    const pptx = new PptxGenJS();
+    pptx.defineLayout({name:'CORA', width:10, height:5.625});
+    pptx.layout = 'CORA'; pptx.author = 'Cora'; pptx.company = 'Cora';
+
+    slides.forEach(function(htmlSlide){
+      const slide = pptx.addSlide();
+      const isDark = htmlSlide.classList.contains('bg-dark');
+      const isPink = htmlSlide.classList.contains('bg-pink');
+      slide.background = { fill: isDark ? COLORS.DARK : (isPink ? COLORS.PINK : COLORS.WHITE) };
+
+      const sectionLabel = htmlSlide.querySelector('.section-label');
+      const title = htmlSlide.querySelector('.slide-title, h1, h2');
+      const subtitle = htmlSlide.querySelector('.slide-subtitle');
+      const body = htmlSlide.querySelector('.slide-body, p');
+      const cards = htmlSlide.querySelectorAll('.card');
+      const steps = htmlSlide.querySelectorAll('.step');
+      const listItems = htmlSlide.querySelectorAll('.styled-list li');
+      const quote = htmlSlide.querySelector('.quote-text');
+
+      if (quote) {
+        slide.addText(quote.textContent, {x:0.8,y:1.8,w:8.4,h:1.8,fontSize:26,fontFace:FONT,color:COLORS.WHITE,bold:true,align:'center',valign:'middle'});
+        const author = htmlSlide.querySelector('.quote-author');
+        if (author) slide.addText(author.textContent, {x:0.8,y:3.6,w:8.4,h:0.4,fontSize:12,fontFace:FONT,color:COLORS.WHITE,align:'center'});
+        return;
+      }
+
+      if (sectionLabel) pptxAddSectionLabel(slide, sectionLabel.textContent, {color: isDark||isPink ? COLORS.WHITE : COLORS.PINK});
+      if (title) { pptxAddTitle(slide, title.textContent, {color: isDark||isPink ? COLORS.WHITE : COLORS.DARK}); pptxAddAccentBar(slide, 1.3); }
+      if (subtitle) pptxAddSubtitle(slide, subtitle.textContent, {color: isDark||isPink ? 'CCCCCC' : COLORS.TEXT_GRAY});
+
+      if (cards.length > 0) {
+        const cardWidth = cards.length === 3 ? 2.7 : 4.0;
+        const gap = 0.3, startX = 0.8;
+        cards.forEach(function(card, i){
+          const cardTitle = card.querySelector('h3');
+          const cardBody = card.querySelector('p');
+          const metricValue = card.querySelector('.metric-value');
+          const metricLabel = card.querySelector('.metric-label');
+          const x = startX + (i * (cardWidth + gap));
+          const bg = i % 2 === 0 ? COLORS.WHITE : COLORS.LIGHT_GRAY;
+          if (metricValue && metricLabel) {
+            slide.addShape('roundRect', {x,y:2.0,w:cardWidth,h:1.8,fill:{color:bg},rectRadius:0.1});
+            slide.addText(metricValue.textContent, {x,y:2.3,w:cardWidth,h:0.6,fontSize:20,fontFace:FONT,color:COLORS.PINK,bold:true,align:'center'});
+            slide.addText(metricLabel.textContent, {x,y:2.9,w:cardWidth,h:0.7,fontSize:9,fontFace:FONT,color:COLORS.TEXT_GRAY,align:'center'});
+          } else {
+            pptxAddCard(slide, x, 2.0, cardWidth, 1.8, cardTitle ? cardTitle.textContent : '', cardBody ? cardBody.textContent : '', bg);
+          }
+        });
+      }
+
+      if (steps.length > 0) {
+        steps.forEach(function(step, i){
+          const stepNum = step.querySelector('.step-number');
+          const stepTitle = step.querySelector('h4');
+          const stepDesc = step.querySelector('p');
+          const y = 2.0 + (i * 0.65);
+          pptxAddStep(slide, 0.8, y, stepNum ? stepNum.textContent : (i+1), stepTitle ? stepTitle.textContent : '', stepDesc ? stepDesc.textContent : '');
+        });
+      }
+
+      if (listItems.length > 0 && cards.length === 0 && steps.length === 0) {
+        const listText = Array.from(listItems).map(function(li){ return '  •  ' + li.textContent; }).join('\n');
+        pptxAddBody(slide, listText, {color: isDark||isPink ? COLORS.WHITE : COLORS.TEXT_DARK});
+      }
+
+      if (body && cards.length === 0 && steps.length === 0 && listItems.length === 0 && !quote) {
+        pptxAddBody(slide, body.textContent, {color: isDark||isPink ? 'CCCCCC' : COLORS.TEXT_DARK});
+      }
+    });
+
+    pptx.writeFile({ fileName: 'planejamento-tiago-gomes.pptx' });
+  }
+
+  const exportBtn = document.getElementById('export-pptx');
+  if (exportBtn) exportBtn.addEventListener('click', generatePptx);
+
+  function init(){
+    slides.forEach(function(s){ s.classList.remove('active'); });
+    slides[0].classList.add('active');
+    updateProgress(); updateCounter();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>
