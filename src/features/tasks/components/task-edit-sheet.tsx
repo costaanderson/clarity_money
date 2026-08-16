@@ -156,6 +156,12 @@ export function TaskEditSheet({
           </div>
         </div>
 
+        <div className="px-6 pb-3 pt-0">
+          <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+            <strong>Tags</strong> não estão disponíveis nesta versão. Tarefas geradas automaticamente por <strong>Regras de Ativação</strong> são identificadas com o badge "Ativação automática" no topo do sheet.
+          </p>
+        </div>
+
         <div className="px-6 pb-6 pt-3 border-t flex justify-end gap-2 shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar

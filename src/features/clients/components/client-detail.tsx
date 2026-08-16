@@ -38,6 +38,7 @@ import {
   ArchiveRestore,
   Download,
   FileText,
+  HelpCircle,
   MessageSquare,
   Mail,
   Moon,
@@ -47,6 +48,12 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -258,14 +265,33 @@ function NotesPanel({ clientId }: { clientId: string }) {
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <Select value={kind} onValueChange={(v) => setKind(v as typeof kind)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nota">Nota de contato</SelectItem>
-                <SelectItem value="contexto">Contexto comportamental</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1.5">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Select value={kind} onValueChange={(v) => setKind(v as typeof kind)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nota">Nota de contato</SelectItem>
+                  <SelectItem value="contexto">Contexto comportamental</SelectItem>
+                </SelectContent>
+              </Select>
+              {kind === "contexto" && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground shrink-0 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-64">
+                      <p className="text-xs">
+                        Síntese do perfil comportamental do cliente: padrões observados, emoções recorrentes, gatilhos financeiros e crenças limitantes.
+                      </p>
+                      <p className="text-xs mt-1 text-muted-foreground">
+                        Pode ser escrita manualmente ou gerada pela IA na aba <strong>IA Bússola</strong>. Limite: 4.000 caracteres.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
               {kind === "nota"
                 ? "Registre o que foi discutido. Transcrições longas: use a aba Documentos."
                 : "Síntese comportamental do cliente — pode ser escrita manualmente ou gerada pela IA."}
