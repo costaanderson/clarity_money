@@ -1,8 +1,10 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createEvent, deleteEvent, listEvents } from "@/features/agenda/lib/calendar.functions";
+import { getGoogleConnectionStatus } from "@/features/agenda/lib/google-auth.functions";
 import { listClients } from "@/features/clients/lib/clients.functions";
 import { Card, CardContent } from "@/shared/components/ui/card";
+import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -14,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { CalendarClock, Trash2 } from "lucide-react";
+import { CalendarClock, Trash2, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -35,6 +37,12 @@ function AgendaPage() {
   const qc = useQueryClient();
   const from = startOfWeekIso();
   const to = new Date(new Date(from).getTime() + 30 * 24 * 3600 * 1000).toISOString();
+
+  const googleStatusQ = useQuery({
+    queryKey: ["google-calendar-status"],
+    queryFn: () => getGoogleConnectionStatus(),
+  });
+  const googleConnected = googleStatusQ.data?.connected ?? false;
 
   const eventsQ = useQuery({
     queryKey: ["events", { from, to }],
@@ -86,16 +94,27 @@ function AgendaPage() {
         </div>
       </header>
 
-      <Card className="bg-secondary/40">
+      <Card className={googleConnected ? "bg-emerald-50/60 border-emerald-200" : "bg-secondary/40"}>
         <CardContent className="p-4 text-sm">
           <p className="font-medium mb-1 flex items-center gap-2">
             <CalendarClock className="h-4 w-4" /> Google Agenda
+            {googleConnected && (
+              <Badge variant="outline" className="gap-1 border-emerald-400 text-emerald-700 text-[10px]">
+                <CheckCircle2 className="h-3 w-3" /> Sincronizado
+              </Badge>
+            )}
           </p>
-          <p className="text-muted-foreground">
-            A sincronização bidirecional com o Google Agenda pode ser ativada em{" "}
-            <Link to="/configuracoes" className="underline text-primary">Configurações</Link>.
-            Enquanto isso, você já pode agendar compromissos aqui e vinculá-los a clientes.
-          </p>
+          {googleConnected ? (
+            <p className="text-muted-foreground">
+              Compromissos criados aqui serão adicionados ao seu Google Agenda automaticamente.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              A sincronização com o Google Agenda pode ser ativada em{" "}
+              <Link to="/configuracoes" className="underline text-primary">Configurações</Link>.
+              Enquanto isso, você já pode agendar compromissos aqui e vinculá-los a clientes.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -150,28 +169,43 @@ function AgendaPage() {
 
       <div className="grid gap-2">
         {eventsQ.data?.length === 0 && <p className="text-sm text-muted-foreground">Sem compromissos.</p>}
-        {eventsQ.data?.map((e) => (
-          <Card key={e.id}>
-            <CardContent className="p-3 flex items-start gap-3">
-              <CalendarClock className="h-5 w-5 text-primary mt-1" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">{e.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(e.start_at).toLocaleString("pt-BR")} — {new Date(e.end_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  {e.clients?.name && (<> · <Link to="/clientes/$id" params={{ id: e.clients.id }} className="underline">{e.clients.name}</Link></>)}
-                </p>
-                {e.meet_link && (
-                  <a href={e.meet_link} target="_blank" rel="noopener" className="text-xs text-primary underline">
-                    Abrir link
-                  </a>
+        {eventsQ.data?.map((e) => {
+          const isGoogleOnly = e.from_google === true;
+          const key = isGoogleOnly ? `g-${e.google_event_id}` : e.id;
+          return (
+            <Card key={key} className={isGoogleOnly ? "opacity-80 border-dashed" : ""}>
+              <CardContent className="p-3 flex items-start gap-3">
+                <CalendarClock className="h-5 w-5 text-primary mt-1" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium">{e.title}</p>
+                    {isGoogleOnly && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600">
+                        Google Agenda
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(e.start_at).toLocaleString("pt-BR")} — {new Date(e.end_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    {!isGoogleOnly && e.clients?.name && (
+                      <> · <Link to="/clientes/$id" params={{ id: e.clients.id }} className="underline">{e.clients.name}</Link></>
+                    )}
+                  </p>
+                  {!isGoogleOnly && e.meet_link && (
+                    <a href={e.meet_link} target="_blank" rel="noopener" className="text-xs text-primary underline">
+                      Abrir link
+                    </a>
+                  )}
+                </div>
+                {!isGoogleOnly && (
+                  <Button variant="ghost" size="icon" onClick={() => del.mutate(e.id!)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 )}
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => del.mutate(e.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

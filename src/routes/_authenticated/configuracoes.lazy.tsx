@@ -2,22 +2,39 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus } from "lucide-react";
+import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listIntakeTokens,
   createIntakeToken,
   revokeIntakeToken,
 } from "@/features/cockpit/lib/cockpit.functions";
-import { useState, useCallback } from "react";
-import { toast } from "sonner";
+import {
+  getGoogleAuthUrl,
+  getGoogleConnectionStatus,
+  revokeGoogleCalendar,
+} from "@/features/agenda/lib/google-auth.functions";
 import { Badge } from "@/shared/components/ui/badge";
+import { useState, useCallback, useEffect } from "react";
+import { toast } from "sonner";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
   "/_authenticated/configuracoes",
 )({ component: SettingsPage });
 
 function SettingsPage() {
+  // Handle OAuth callback query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("connected") === "1") {
+      toast.success("Google Agenda conectado com sucesso!");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("error") === "google_auth_failed") {
+      toast.error("Não foi possível conectar o Google Agenda. Tente novamente.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
       <header>
@@ -25,19 +42,7 @@ function SettingsPage() {
         <h1 className="text-3xl font-serif">Configurações</h1>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-serif flex items-center gap-2">
-            <CalendarClock className="h-4 w-4" /> Google Agenda
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <p className="text-muted-foreground">
-            Conecte sua conta Google para sincronização bidirecional.
-          </p>
-          <Button variant="outline" disabled>Conectar Google Agenda (em breve)</Button>
-        </CardContent>
-      </Card>
+      <GoogleCalendarCard />
 
       <TrackingURLsCard />
 
@@ -66,6 +71,77 @@ function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function GoogleCalendarCard() {
+  const qc = useQueryClient();
+  const statusQ = useQuery({
+    queryKey: ["google-calendar-status"],
+    queryFn: () => getGoogleConnectionStatus(),
+  });
+
+  const revoke = useMutation({
+    mutationFn: () => revokeGoogleCalendar(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
+      toast.success("Google Agenda desconectado.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  async function handleConnect() {
+    try {
+      const redirectUri = `${window.location.origin}/api/google/callback`;
+      const url = await getGoogleAuthUrl({ data: { redirectUri } });
+      window.location.href = url;
+    } catch (e) {
+      toast.error("Não foi possível iniciar a conexão com o Google.");
+    }
+  }
+
+  const { connected, email } = statusQ.data ?? { connected: false, email: null };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-serif flex items-center gap-2">
+          <CalendarClock className="h-4 w-4" /> Google Agenda
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          Conecte sua conta Google para sincronizar compromissos automaticamente.
+          Eventos criados na Bússola aparecerão no Google Agenda e vice-versa.
+        </p>
+
+        {statusQ.isLoading ? (
+          <div className="h-8 w-40 rounded bg-muted animate-pulse" />
+        ) : connected ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant="outline" className="gap-1.5 border-emerald-400 text-emerald-700">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Conectado{email ? `: ${email}` : ""}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => revoke.mutate()}
+              disabled={revoke.isPending}
+              className="text-destructive border-destructive/40 hover:bg-destructive/10"
+            >
+              <XCircle className="h-3.5 w-3.5 mr-1" />
+              Desconectar
+            </Button>
+          </div>
+        ) : (
+          <Button variant="outline" onClick={handleConnect}>
+            <CalendarClock className="h-4 w-4 mr-2" />
+            Conectar Google Agenda
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

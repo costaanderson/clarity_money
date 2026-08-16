@@ -383,6 +383,33 @@ export type Database = {
           },
         ]
       }
+      google_calendar_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          google_email: string | null
+          refresh_token: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          google_email?: string | null
+          refresh_token: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          google_email?: string | null
+          refresh_token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lead_intake_log: {
         Row: {
           created_at: string
