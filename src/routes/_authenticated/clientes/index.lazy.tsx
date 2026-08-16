@@ -1,29 +1,29 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { archiveClient, listClients, restoreClient } from "@/lib/clients.functions";
-import { listCategories } from "@/lib/categories.functions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { archiveClient, listClients, restoreClient } from "@/features/clients/lib/clients.functions";
+import { listCategories } from "@/features/settings/lib/categories.functions";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { Badge } from "@/shared/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/shared/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/components/ui/dropdown-menu";
 import { Archive, ArchiveRestore, MoreHorizontal, Plus, Search, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { NewClientDialog } from "@/components/clients/new-client-dialog";
-import { ClientDetailSheet } from "@/components/clients/client-detail-sheet";
+import { NewClientDialog } from "@/features/clients/components/new-client-dialog";
+import { ClientDetailSheet } from "@/features/clients/components/client-detail-sheet";
 
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)("/_authenticated/clientes/")({

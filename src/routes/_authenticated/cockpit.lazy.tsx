@@ -1,10 +1,10 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { getCockpitOverview } from "@/lib/cockpit.functions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { getCockpitOverview } from "@/features/cockpit/lib/cockpit.functions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import {
   Table,
   TableBody,
@@ -12,13 +12,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/components/ui/table";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@/shared/components/ui/accordion";
 import { Gauge, TrendingUp, Users, Timer, Percent, CalendarDays, AlertCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -32,7 +32,7 @@ import {
   Line,
   Legend,
 } from "recharts";
-import { CLIENT_SOURCES } from "@/lib/clients.functions";
+import { CLIENT_SOURCES } from "@/features/clients/lib/clients.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const Route = (createLazyFileRoute as any)("/_authenticated/cockpit")({

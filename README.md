@@ -1,116 +1,114 @@
-# Bússola — CRM para planejadores financeiros
+# Bússola — CRM comportamental para planejadores financeiros
 
-CRM comportamental construído com **TanStack Start (React 19 + Vite)**, **Supabase** (banco, auth, storage) e **Lovable AI Gateway** (Gemini) para resumos e análises.
-
----
-
-## Stack
-
-- TanStack Start v1 (SSR + server functions) — build via Nitro, preset `vercel`
-- React 19, Tailwind CSS v4, shadcn/ui
-- Supabase (Postgres com RLS, Auth, Storage bucket `client-documents`)
-- Lovable AI Gateway (Gemini 2.5 Flash)
+Stack: **TanStack Start** (React 19, SSR) · **Supabase** (auth, DB, storage) · **Tailwind CSS v4** · **shadcn/ui** · **Vercel**
 
 ---
 
-## Checklist de variáveis de ambiente
-
-Copie de `.env.example` e configure **todas** na Vercel (Project → Settings → Environment Variables), para os ambientes **Production**, **Preview** e **Development**.
-
-### Cliente (expostas no browser — prefixo `VITE_`)
-
-| Variável | Obrigatória | Descrição |
-| --- | --- | --- |
-| `VITE_SUPABASE_URL` | ✅ | URL do projeto Supabase (`https://<ref>.supabase.co`) |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | ✅ | Chave publicável/anon — segura para o browser |
-| `VITE_SUPABASE_PROJECT_ID` | ✅ | Ref do projeto Supabase |
-
-### Servidor (nunca expor no browser)
-
-| Variável | Obrigatória | Descrição |
-| --- | --- | --- |
-| `SUPABASE_URL` | ✅ | Mesma URL, usada em server functions/SSR |
-| `SUPABASE_PUBLISHABLE_KEY` | ✅ | Mesma chave anon, usada no middleware de auth |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service role — ignora RLS. **Somente servidor** |
-| `LOVABLE_API_KEY` | ✅ (para IA) | Chave do AI Gateway. Sem ela, as funções de IA retornam erro |
-
-> ⚠️ Nunca prefixe chaves de servidor com `VITE_` — isso as publicaria no bundle do cliente.
-
-### Checklist rápido antes do deploy
-
-- [ ] As 3 variáveis `VITE_*` configuradas
-- [ ] As 3 variáveis `SUPABASE_*` de servidor configuradas
-- [ ] `LOVABLE_API_KEY` configurada (ou aceitar IA desabilitada)
-- [ ] Nenhuma chave de servidor com prefixo `VITE_`
-- [ ] Variáveis marcadas para Production **e** Preview
-- [ ] URL do deploy adicionada em Supabase → Auth → URL Configuration (Site URL + Redirect URLs), incluindo `https://<seu-dominio>` e `https://<seu-dominio>/auth`
-- [ ] Provider Google habilitado no Supabase Auth (se for usar login com Google), com o callback `https://<ref>.supabase.co/auth/v1/callback` registrado no Google Cloud Console
-
----
-
-## Deploy na Vercel a partir do GitHub
-
-### 1. Enviar o código para o GitHub
-
-No Lovable: menu **+** (canto inferior esquerdo do chat) → **GitHub** → **Connect project** → autorize o app → escolha a conta/organização → **Create Repository**. O sync é bidirecional.
-
-Alternativa: **Code Editor** → **Download codebase** e faça `git init && git push` para um repo próprio.
-
-### 2. Importar na Vercel
-
-1. Acesse [vercel.com/new](https://vercel.com/new) e selecione o repositório.
-2. Framework Preset: **Other** (o Nitro já gera `.vercel/output` no formato Build Output API v3).
-3. Build Command: `npm run build` (ou `bun run build`)
-4. Output Directory: deixe **em branco** — o preset `vercel` do Nitro escreve em `.vercel/output`.
-5. Install Command: padrão.
-
-O preset já está fixado em `vite.config.ts`:
-
-```ts
-nitro: { preset: "vercel" }
-```
-
-### 3. Configurar as variáveis
-
-Antes do primeiro build, cole todas as variáveis do checklist acima em **Settings → Environment Variables**. Se você já tiver feito deploy sem elas, use **Deployments → ⋯ → Redeploy** depois de salvá-las.
-
-### 4. Ajustar o Supabase
-
-Em Auth → URL Configuration, adicione a URL de produção da Vercel como **Site URL** e nas **Redirect URLs** (inclua também o domínio de preview `*.vercel.app` se for testar por lá).
-
-### 5. Verificar após o deploy
-
-- [ ] `/` carrega e o login funciona
-- [ ] `/diagnostico` (wizard público) abre rápido, sem autenticação
-- [ ] Criar/editar cliente persiste no banco
-- [ ] Upload de documento funciona (bucket `client-documents`)
-- [ ] Geração de IA na aba "IA Bússola" responde
-
----
-
-## Rodando localmente
+## Como rodar localmente
 
 ```bash
-bun install       # ou npm install
+# 1. Instale as dependências
+npm install
+
+# 2. Copie e preencha as variáveis de ambiente
 cp .env.example .env
-# preencha o .env
-bun run dev       # http://localhost:8080
+
+# 3. Suba o servidor de desenvolvimento
+npm run dev
+# → http://localhost:3000
+```
+
+### Variáveis de ambiente necessárias (`.env`)
+
+| Variável | Descrição |
+|---|---|
+| `VITE_SUPABASE_URL` | URL do projeto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Chave pública (anon) do Supabase |
+| `GOOGLE_AI_API_KEY` | Chave da Google AI (Gemini) |
+
+---
+
+## Estrutura de pastas
+
+```
+src/
+├── features/                  # Domínios de negócio
+│   ├── clients/
+│   │   ├── components/        # client-detail, client-detail-sheet, new-client-dialog
+│   │   └── lib/               # clients.functions, notes.functions, documents.functions
+│   ├── pipeline/              # (usa lib do clients)
+│   ├── tasks/
+│   │   ├── components/        # task-edit-sheet
+│   │   └── lib/               # tasks.functions
+│   ├── agenda/
+│   │   └── lib/               # calendar.functions
+│   ├── cockpit/
+│   │   └── lib/               # cockpit.functions (KPIs, intake tokens)
+│   ├── week-panel/
+│   │   └── lib/               # dashboard.functions
+│   ├── diagnostic/
+│   │   └── lib/               # diagnostico, diagnostics.functions
+│   ├── ai/
+│   │   └── lib/               # ai.functions, extract-text
+│   ├── settings/
+│   │   └── lib/               # categories.functions
+│   └── activation-rules/
+│       └── lib/               # rules.functions
+│
+├── shared/                    # Código compartilhado entre features
+│   ├── components/
+│   │   └── ui/                # shadcn/ui (Button, Card, Input…)
+│   ├── hooks/                 # use-mobile
+│   ├── lib/                   # error-reporting, utils
+│   ├── types/
+│   └── utils/
+│
+├── integrations/
+│   └── supabase/              # client, types, auth middleware
+│
+├── routes/                    # TanStack file-based routes (wrappers finos)
+│   ├── __root.tsx
+│   ├── auth.tsx / auth.lazy.tsx
+│   ├── diagnostico.tsx        # Wizard público de leads
+│   ├── api/public/            # Endpoints públicos (leads, diagnóstico)
+│   └── _authenticated/        # Rotas protegidas por auth
+│       ├── route.tsx          # Auth guard + layout com sidebar
+│       ├── index.lazy.tsx     # Painel da Semana
+│       ├── clientes/
+│       ├── pipeline.lazy.tsx
+│       ├── cockpit.lazy.tsx
+│       ├── agenda.lazy.tsx
+│       ├── tarefas.lazy.tsx
+│       ├── categorias.lazy.tsx
+│       ├── regras-ativacao.lazy.tsx
+│       ├── estrategia.lazy.tsx
+│       └── configuracoes.lazy.tsx
+│
+└── lib/                       # Utilitários globais (utils.ts, error-capture…)
 ```
 
 ---
 
-## Rotas públicas (sem auth)
+## Decisões de arquitetura
 
-- `GET /diagnostico` — wizard "Raio-X do Sono Financeiro"
-- `POST /api/public/diagnostico` — recebe as respostas do wizard
-- `POST /api/public/leads` — intake de leads (requer token válido)
-
-Tudo abaixo de `src/routes/_authenticated/` exige sessão.
+- **Feature-based**: cada domínio tem seus próprios componentes e lib isolados em `src/features/<domain>/`.
+- **Rotas como wrappers finos**: as rotas em `src/routes/_authenticated/` importam de `src/features/` e não contêm lógica de negócio própria.
+- **Shared UI**: componentes shadcn ficam em `src/shared/components/ui/` — importados via `@/shared/components/ui/`.
+- **Server functions** (TanStack Start): todas as funções de acesso ao banco são `createServerFn()` e rodam no servidor.
+- **Auth**: Supabase OAuth nativo (Google). O fluxo usa `supabase.auth.signInWithOAuth`.
+- **IA**: Gemini 2.5 Flash via Google AI API direta (`generativelanguage.googleapis.com`). Contexto montado a partir de notas e documentos indexados do cliente.
+- **Documentos indexados**: PDFs e `.txt`/`.md` têm o texto extraído e salvo em `documents.extracted_text` para uso pela IA.
 
 ---
 
-## Observações
+## Build e deploy
 
-- Migrações do banco vivem em `supabase/migrations/` — aplique-as no projeto Supabase de destino se for usar um projeto novo.
-- `src/routeTree.gen.ts` é gerado automaticamente; não edite à mão.
-- O `.env` não é versionado; as variáveis precisam ser recriadas em cada ambiente de hospedagem.
+```bash
+# Build de produção (preset Vercel)
+npm run build
+
+# Deploy: push para main → Vercel detecta e faz deploy automático
+git push origin main
+```
+
+O projeto usa o preset `vercel` do Nitro. Um script `postinstall` (`scripts/patch-nft.cjs`) corrige a compatibilidade ESM/CJS do `@vercel/nft` no Node.js 22.

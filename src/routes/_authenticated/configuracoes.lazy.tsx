@@ -1,17 +1,17 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listIntakeTokens,
   createIntakeToken,
   revokeIntakeToken,
-} from "@/lib/cockpit.functions";
+} from "@/features/cockpit/lib/cockpit.functions";
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/components/ui/badge";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
   "/_authenticated/configuracoes",

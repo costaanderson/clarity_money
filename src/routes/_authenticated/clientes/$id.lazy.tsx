@@ -1,7 +1,7 @@
 import { createLazyFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { ClientDetail } from "@/components/clients/client-detail";
+import { ClientDetail } from "@/features/clients/components/client-detail";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
   "/_authenticated/clientes/$id",

@@ -1,25 +1,25 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createTask, deleteTask, listTasks, setTaskStatus } from "@/lib/tasks.functions";
-import { listClients } from "@/lib/clients.functions";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { createTask, deleteTask, listTasks, setTaskStatus } from "@/features/tasks/lib/tasks.functions";
+import { listClients } from "@/features/clients/lib/clients.functions";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { Label } from "@/shared/components/ui/label";
+import { Badge } from "@/shared/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "@/shared/components/ui/select";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TaskEditSheet } from "@/components/tasks/task-edit-sheet";
+import { TaskEditSheet } from "@/features/tasks/components/task-edit-sheet";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
   "/_authenticated/tarefas",

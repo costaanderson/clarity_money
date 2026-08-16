@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MAX_SCORE, QUESTIONS, STAGES } from "@/lib/diagnostico";
+import { MAX_SCORE, QUESTIONS, STAGES } from "@/features/diagnostic/lib/diagnostico";
 
 const CSS = `
 :root {

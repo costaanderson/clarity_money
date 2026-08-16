@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const Route = (createLazyFileRoute as any)("/_authenticated/estrategia")({

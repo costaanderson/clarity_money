@@ -14,7 +14,7 @@ import appCss from "../styles.css?url";
 import { reportError } from "@/shared/lib/error-reporting";
 
 const LazyToaster = lazy(() =>
-  import("@/components/ui/sonner").then((module) => ({ default: module.Toaster })),
+  import("@/shared/components/ui/sonner").then((module) => ({ default: module.Toaster })),
 );
 
 function NotFoundComponent() {

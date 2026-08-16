@@ -1,19 +1,19 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createEvent, deleteEvent, listEvents } from "@/lib/calendar.functions";
-import { listClients } from "@/lib/clients.functions";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { createEvent, deleteEvent, listEvents } from "@/features/agenda/lib/calendar.functions";
+import { listClients } from "@/features/clients/lib/clients.functions";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { Label } from "@/shared/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/shared/components/ui/select";
 import { CalendarClock, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

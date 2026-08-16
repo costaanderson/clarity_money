@@ -1,13 +1,13 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listPipeline, moveClientStage, PIPELINE_STAGES, PIPELINE_STAGE_FINALIZADO, type PipelineStage } from "@/lib/clients.functions";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { listPipeline, moveClientStage, PIPELINE_STAGES, PIPELINE_STAGE_FINALIZADO, type PipelineStage } from "@/features/clients/lib/clients.functions";
+import { Card } from "@/shared/components/ui/card";
+import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
 import { KanbanSquare, Instagram, Megaphone, Globe, Users, UserPlus, CheckCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ClientDetailSheet } from "@/components/clients/client-detail-sheet";
+import { ClientDetailSheet } from "@/features/clients/components/client-detail-sheet";
 
 
 const SOURCE_META: Record<string, { label: string; Icon: typeof Instagram; className: string }> = {

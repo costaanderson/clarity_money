@@ -1,12 +1,12 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { getWeekDashboard } from "@/lib/dashboard.functions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { getWeekDashboard } from "@/features/week-panel/lib/dashboard.functions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
 import { Users, CalendarClock, CheckSquare, AlertTriangle, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)("/_authenticated/")({
   component: DashboardPage,

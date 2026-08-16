@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { Compass, Users, LayoutDashboard, Calendar, CheckSquare, Tag, Bell, Settings, LogOut, KanbanSquare, Gauge, Map, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
