@@ -78,7 +78,7 @@ function AgendaPage() {
   });
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
       <header className="flex items-end justify-between">
         <div>
           <p className="text-sm text-muted-foreground">Compromissos</p>

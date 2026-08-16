@@ -31,14 +31,14 @@ export const getCockpitOverview = createServerFn({ method: "GET" })
 
     const createdIds = (created ?? []).map((c) => c.id);
 
-    // 2) stage history for these clients — to detect who reached em_andamento
+    // 2) stage history for these clients — to detect who reached em_andamento or finalizado
     let closed: { client_id: string; changed_at: string }[] = [];
     if (createdIds.length > 0) {
       const { data: hist, error: e2 } = await context.supabase
         .from("client_stage_history")
         .select("client_id,stage,changed_at")
         .in("client_id", createdIds)
-        .eq("stage", "em_andamento")
+        .in("stage", ["em_andamento", "finalizado"])
         .order("changed_at", { ascending: true });
       if (e2) throw new Error(e2.message);
       const seen = new Set<string>();
@@ -51,11 +51,12 @@ export const getCockpitOverview = createServerFn({ method: "GET" })
     }
     const closedMap = new Map(closed.map((c) => [c.client_id, new Date(c.changed_at)]));
 
-    // 3) all non-archived clients — for funnel snapshot
+    // 3) all non-archived, non-finalizado clients — for active pipeline funnel snapshot
     const { data: allClients, error: e3 } = await context.supabase
       .from("clients")
       .select("id,source,pipeline_stage,status,created_at")
-      .neq("status", "arquivado");
+      .neq("status", "arquivado")
+      .neq("pipeline_stage", "finalizado");
     if (e3) throw new Error(e3.message);
 
     // ---------- Aggregations ----------

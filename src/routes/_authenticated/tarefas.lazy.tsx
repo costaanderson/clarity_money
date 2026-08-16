@@ -16,18 +16,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { TaskEditSheet } from "@/components/tasks/task-edit-sheet";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
   "/_authenticated/tarefas",
 )({ component: TasksPage });
 
+type Task = Awaited<ReturnType<typeof listTasks>>[number];
+
 function TasksPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"all" | "pendente" | "feito">("pendente");
   const [range, setRange] = useState<"all" | "week" | "overdue">("all");
+  const [editTask, setEditTask] = useState<Task | null>(null);
 
   const tasksQ = useQuery({
     queryKey: ["tasks", { filter, range }],
@@ -77,7 +81,7 @@ function TasksPage() {
   });
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
       <header>
         <p className="text-sm text-muted-foreground">Execução</p>
         <h1 className="text-3xl font-serif">Tarefas</h1>
@@ -151,9 +155,12 @@ function TasksPage() {
                 className="mt-1"
               />
               <div className="flex-1 min-w-0">
-                <p className={t.status === "feito" ? "line-through text-muted-foreground" : "font-medium"}>
+                <button
+                  className={`text-left w-full ${t.status === "feito" ? "line-through text-muted-foreground" : "font-medium"} hover:underline`}
+                  onClick={() => setEditTask(t)}
+                >
                   {t.title}
-                </p>
+                </button>
                 {t.description && (<p className="text-sm text-muted-foreground">{t.description}</p>)}
                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                   {t.due_at && (<span>{new Date(t.due_at).toLocaleString("pt-BR")}</span>)}
@@ -162,16 +169,39 @@ function TasksPage() {
                       {t.clients.name}
                     </Link>
                   )}
-                  {t.source === "regra_ativacao" && (<Badge variant="secondary">Ativação</Badge>)}
+                  {t.source === "regra_ativacao" && (
+                    <Badge
+                      variant="secondary"
+                      title="Gerada automaticamente por uma regra de ativação configurada em Configurações → Regras"
+                    >
+                      Ativação
+                    </Badge>
+                  )}
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => del.mutate(t.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Editar tarefa"
+                  onClick={() => setEditTask(t)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => del.mutate(t.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <TaskEditSheet
+        task={editTask}
+        open={!!editTask}
+        onOpenChange={(o) => !o && setEditTask(null)}
+      />
     </div>
   );
 }

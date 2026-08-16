@@ -70,6 +70,31 @@ export const setTaskStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        title: z.string().min(1).max(200).optional(),
+        description: z.string().max(2000).nullable().optional(),
+        due_at: z.string().nullable().optional(),
+        client_id: z.string().uuid().nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...rest } = data;
+    const { data: row, error } = await context.supabase
+      .from("tasks")
+      .update(rest)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 export const deleteTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))

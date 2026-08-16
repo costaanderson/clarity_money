@@ -2,14 +2,14 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CalendarClock, Sparkles, Shield, Link2, Copy, Trash2, Plus } from "lucide-react";
+import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listIntakeTokens,
   createIntakeToken,
   revokeIntakeToken,
 } from "@/lib/cockpit.functions";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,7 +19,7 @@ export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
 
 function SettingsPage() {
   return (
-    <div className="p-8 max-w-3xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
       <header>
         <p className="text-sm text-muted-foreground">Preferências</p>
         <h1 className="text-3xl font-serif">Configurações</h1>
@@ -49,8 +49,9 @@ function SettingsPage() {
             <Sparkles className="h-4 w-4" /> IA (Gemini)
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          A IA da Bússola está ativa por padrão via Lovable AI Gateway (Gemini 2.5 Flash).
+        <CardContent className="text-sm text-muted-foreground space-y-1">
+          <p>A IA da Bússola usa o modelo <strong>Gemini 2.5 Flash</strong> diretamente via Google AI API.</p>
+          <p>As gerações são baseadas no cadastro, notas e documentos indexados do cliente.</p>
         </CardContent>
       </Card>
 
@@ -175,7 +176,22 @@ function IntakeTokensCard() {
   );
 }
 
+function useCopyFeedback() {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = useCallback(async (url: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(key);
+      setTimeout(() => setCopied((v) => (v === key ? null : v)), 2000);
+    } catch {
+      toast.error("Não foi possível copiar");
+    }
+  }, []);
+  return { copied, copy };
+}
+
 function TrackingURLsCard() {
+  const { copied, copy } = useCopyFeedback();
   const origin = typeof window !== "undefined" ? window.location.origin : "https://seu-dominio.com";
   const lp = `${origin}/diagnostico`;
 
@@ -207,15 +223,6 @@ function TrackingURLsCard() {
     },
   ];
 
-  async function copy(url: string) {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copiado");
-    } catch {
-      toast.error("Não foi possível copiar");
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -225,16 +232,26 @@ function TrackingURLsCard() {
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="text-muted-foreground">
-          Todos os cliques caem em <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{lp}</code>. Cada link abaixo já vem com UTMs
-          para que o lead entre no CRM com a origem correta (Instagram, Google Ads ou LP direta) e apareça marcado no Pipeline e no Cockpit.
+          Estes links levam ao <strong>Raio-X do Sono Financeiro</strong> — o formulário público de diagnóstico. Quando um lead completa o formulário, ele entra automaticamente no CRM com a origem correta e aparece marcado no Pipeline e no Cockpit.
+        </p>
+        <p className="text-muted-foreground">
+          Todos caem em <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{lp}</code> com UTMs diferentes para rastrear a origem.
         </p>
         <div className="space-y-3">
           {links.map((l) => (
             <div key={l.channel} className="border rounded-lg p-3 space-y-1.5 bg-muted/20">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className="text-xs font-medium">{l.channel}</span>
-                <Button size="sm" variant="ghost" onClick={() => copy(l.url)}>
-                  <Copy className="h-3 w-3 mr-1" /> Copiar
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => copy(l.url, l.channel)}
+                  className={copied === l.channel ? "text-emerald-600" : ""}
+                >
+                  {copied === l.channel
+                    ? <><Check className="h-3 w-3 mr-1" /> Copiado!</>
+                    : <><Copy className="h-3 w-3 mr-1" /> Copiar</>
+                  }
                 </Button>
               </div>
               <Input readOnly value={l.url} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />

@@ -70,8 +70,8 @@ function RulesPage() {
   });
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
-      <header className="flex items-end justify-between">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">Automação de acompanhamento</p>
           <h1 className="text-3xl font-serif">Regras de ativação</h1>

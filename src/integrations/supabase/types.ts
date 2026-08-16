@@ -259,6 +259,7 @@ export type Database = {
           created_at: string
           document: string | null
           email: string | null
+          finalized_at: string | null
           id: string
           landing_url: string | null
           last_contact_at: string | null
@@ -283,6 +284,7 @@ export type Database = {
           created_at?: string
           document?: string | null
           email?: string | null
+          finalized_at?: string | null
           id?: string
           landing_url?: string | null
           last_contact_at?: string | null
@@ -307,6 +309,7 @@ export type Database = {
           created_at?: string
           document?: string | null
           email?: string | null
+          finalized_at?: string | null
           id?: string
           landing_url?: string | null
           last_contact_at?: string | null
@@ -340,6 +343,7 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
+          extracted_text: string | null
           id: string
           mime: string | null
           name: string
@@ -350,6 +354,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string
+          extracted_text?: string | null
           id?: string
           mime?: string | null
           name: string
@@ -360,6 +365,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
+          extracted_text?: string | null
           id?: string
           mime?: string | null
           name?: string
@@ -577,6 +583,7 @@ export type Database = {
         | "fechamento"
         | "contrato_enviado"
         | "em_andamento"
+        | "finalizado"
       rule_action: "task" | "email" | "ambos"
       task_source: "manual" | "regra_ativacao"
       task_status: "pendente" | "feito" | "cancelado"
@@ -726,6 +733,7 @@ export const Constants = {
         "fechamento",
         "contrato_enviado",
         "em_andamento",
+        "finalizado",
       ],
       rule_action: ["task", "email", "ambos"],
       task_source: ["manual", "regra_ativacao"],

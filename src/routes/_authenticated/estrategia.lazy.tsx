@@ -24,24 +24,24 @@ function EstrategiaPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-1px)]">
-      <div className="flex items-center justify-between px-6 py-3 border-b">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-3 border-b">
         <div>
           <h1 className="text-lg font-semibold">Planejamento Estratégico</h1>
-          <p className="text-xs text-muted-foreground">Use as setas ou os botões para navegar entre os slides</p>
+          <p className="text-xs text-muted-foreground hidden sm:block">Use as setas ou os botões para navegar entre os slides</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => nav("prev")}>
             <ChevronLeft className="h-4 w-4" />
-            Anterior
+            <span className="hidden sm:inline">Anterior</span>
           </Button>
           <Button variant="outline" size="sm" onClick={() => nav("next")}>
-            Próximo
+            <span className="hidden sm:inline">Próximo</span>
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button asChild variant="outline" size="sm">
             <a href="/estrategia.html" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4" />
-              Abrir em nova aba
+              <span className="hidden sm:inline">Abrir em nova aba</span>
             </a>
           </Button>
         </div>

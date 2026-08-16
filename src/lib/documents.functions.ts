@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { extractText } from "@/features/ai/lib/extract-text";
 
 export const listDocuments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -51,12 +52,34 @@ export const registerDocument = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    // Insere o registro do documento
     const { data: row, error } = await context.supabase
       .from("documents")
       .insert({ ...data, user_id: context.userId })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // Tenta extrair texto do arquivo para indexação pela IA
+    try {
+      const { data: fileData, error: downloadError } = await context.supabase.storage
+        .from("client-documents")
+        .download(data.path);
+      if (!downloadError && fileData) {
+        const buffer = Buffer.from(await fileData.arrayBuffer());
+        const extracted = await extractText(buffer, data.mime ?? null);
+        if (extracted !== null) {
+          await context.supabase
+            .from("documents")
+            .update({ extracted_text: extracted })
+            .eq("id", row.id);
+          return { ...row, extracted_text: extracted };
+        }
+      }
+    } catch {
+      // Extração falhou — documento registrado sem texto indexado
+    }
+
     return row;
   });
 

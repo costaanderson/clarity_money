@@ -156,7 +156,14 @@ export function ClientDetail({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => markC.mutate()}>Registrar contato</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => markC.mutate()}
+            title="Registra a data do último contato com este cliente. Use para manter o histórico de interações atualizado."
+          >
+            Registrar contato
+          </Button>
           {c.status !== "arquivado" ? (
             <Button variant="outline" size="sm" onClick={() => archive.mutate()}>
               <Archive className="h-4 w-4 mr-1.5" /> Arquivar
@@ -203,6 +210,8 @@ export function ClientDetail({ id }: { id: string }) {
 }
 
 
+const NOTE_MAX = 4000;
+
 function NotesPanel({ clientId }: { clientId: string }) {
   const qc = useQueryClient();
   const [kind, setKind] = useState<"nota" | "contexto">("nota");
@@ -227,6 +236,18 @@ function NotesPanel({ clientId }: { clientId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notes", clientId] }),
   });
 
+  const remaining = NOTE_MAX - content.length;
+  const nearLimit = remaining < 200;
+
+  const notaPlaceholder =
+    "Resumo da conversa — o que foi discutido, próximos passos acordados.\n\nPara transcrições longas, suba o arquivo na aba Documentos.";
+  const contextoPlaceholder =
+    "Síntese do perfil comportamental: padrões observados, emoções recorrentes, gatilhos financeiros, crenças limitantes…\n\nEsse campo também pode ser gerado pela IA na aba IA Bússola.";
+
+  const allNotes = notesQ.data ?? [];
+  const contextNotes = allNotes.filter((n) => n.kind === "contexto");
+  const regularNotes = allNotes.filter((n) => n.kind === "nota");
+
   return (
     <div className="grid md:grid-cols-3 gap-6">
       <Card className="md:col-span-1 h-fit md:sticky md:top-0">
@@ -236,22 +257,37 @@ function NotesPanel({ clientId }: { clientId: string }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Select value={kind} onValueChange={(v) => setKind(v as typeof kind)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="nota">Nota</SelectItem>
-              <SelectItem value="contexto">Contexto comportamental</SelectItem>
-            </SelectContent>
-          </Select>
-          <Textarea
-            rows={6}
-            placeholder={kind === "nota" ? "O que aconteceu na conversa?" : "Padrões, emoções, gatilhos observados…"}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
+          <div>
+            <Select value={kind} onValueChange={(v) => setKind(v as typeof kind)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nota">Nota de contato</SelectItem>
+                <SelectItem value="contexto">Contexto comportamental</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {kind === "nota"
+                ? "Registre o que foi discutido. Transcrições longas: use a aba Documentos."
+                : "Síntese comportamental do cliente — pode ser escrita manualmente ou gerada pela IA."}
+            </p>
+          </div>
+          <div>
+            <Textarea
+              rows={6}
+              placeholder={kind === "nota" ? notaPlaceholder : contextoPlaceholder}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              maxLength={NOTE_MAX}
+            />
+            {nearLimit && (
+              <p className={`text-xs mt-1 text-right ${remaining <= 0 ? "text-destructive font-medium" : "text-amber-600"}`}>
+                {remaining <= 0 ? "Limite atingido" : `${remaining} caracteres restantes`}
+              </p>
+            )}
+          </div>
           <Button
             className="w-full"
-            disabled={!content.trim() || add.isPending}
+            disabled={!content.trim() || content.length > NOTE_MAX || add.isPending}
             onClick={() => add.mutate()}
           >
             Adicionar
@@ -259,32 +295,68 @@ function NotesPanel({ clientId }: { clientId: string }) {
         </CardContent>
       </Card>
 
-      <div className="md:col-span-2 space-y-3">
-        {notesQ.data?.length === 0 && (
+      <div className="md:col-span-2 space-y-6">
+        {allNotes.length === 0 && (
           <div className="border border-dashed rounded-lg py-12 text-center">
             <MessageSquare className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
             <p className="text-sm text-muted-foreground">Nenhum registro ainda.</p>
             <p className="text-xs text-muted-foreground/70 mt-1">Adicione a primeira nota ao lado.</p>
           </div>
         )}
-        {notesQ.data?.map((n) => (
-          <Card key={n.id} className="group">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant={n.kind === "contexto" ? "secondary" : "outline"} className="rounded-full font-normal capitalize">{n.kind}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(n.created_at).toLocaleString("pt-BR")}
-                  </span>
-                </div>
-                <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" onClick={() => del.mutate(n.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{n.content}</p>
-            </CardContent>
-          </Card>
-        ))}
+
+        {/* Contact history timeline */}
+        {contextNotes.length > 0 && (
+          <div>
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+              Contexto comportamental
+            </h3>
+            <div className="space-y-2">
+              {contextNotes.map((n) => (
+                <Card key={n.id} className="group border-secondary/60">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(n.created_at).toLocaleString("pt-BR")}
+                      </span>
+                      <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" onClick={() => del.mutate(n.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Regular notes */}
+        {regularNotes.length > 0 && (
+          <div>
+            {contextNotes.length > 0 && (
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+                Notas de contato
+              </h3>
+            )}
+            <div className="space-y-2">
+              {regularNotes.map((n) => (
+                <Card key={n.id} className="group">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(n.created_at).toLocaleString("pt-BR")}
+                      </span>
+                      <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" onClick={() => del.mutate(n.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -350,7 +422,7 @@ function DocumentsPanel({ clientId }: { clientId: string }) {
             <div className="min-w-0">
               <p className="font-medium">Anexar documento</p>
               <p className="text-xs text-muted-foreground">
-                Contratos, planilhas, extratos. Armazenamento privado por cliente.
+                Transcrições (.txt, .pdf) e resumos são indexados pela IA. Contratos, imagens e planilhas são armazenados mas não processados.
               </p>
             </div>
           </div>
@@ -365,30 +437,43 @@ function DocumentsPanel({ clientId }: { clientId: string }) {
         <div className="border border-dashed rounded-lg py-10 text-center">
           <FileText className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
           <p className="text-sm text-muted-foreground">Nenhum documento anexado ainda.</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">Suba transcrições ou resumos para que a IA possa analisá-los.</p>
         </div>
       )}
 
       <div className="grid gap-2">
-        {docsQ.data?.map((d) => (
-          <Card key={d.id}>
-            <CardContent className="p-3 flex items-center gap-3">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{d.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {d.mime ?? "arquivo"} · {d.size ? `${Math.round((d.size / 1024) * 10) / 10} KB` : "—"} ·{" "}
-                  {new Date(d.created_at).toLocaleDateString("pt-BR")}
-                </p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => downloadDoc(d.id)}>
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => del.mutate(d.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+        {docsQ.data?.map((d) => {
+          const isIndexed = !!(d as any).extracted_text;
+          return (
+            <Card key={d.id}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <FileText className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium truncate">{d.name}</p>
+                    <Badge
+                      variant={isIndexed ? "secondary" : "outline"}
+                      className={`text-[10px] px-1.5 py-0 shrink-0 ${isIndexed ? "text-emerald-700 border-emerald-300 bg-emerald-50" : ""}`}
+                      title={isIndexed ? "Texto extraído — a IA pode analisar este documento" : "Formato não suportado para extração de texto — armazenado mas não indexado pela IA"}
+                    >
+                      {isIndexed ? "Indexado" : "Não processado"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {d.mime ?? "arquivo"} · {d.size ? `${Math.round((d.size / 1024) * 10) / 10} KB` : "—"} ·{" "}
+                    {new Date(d.created_at).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => downloadDoc(d.id)}>
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => del.mutate(d.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
@@ -406,19 +491,37 @@ function AIPanel({ clientId }: { clientId: string }) {
   const [kind, setKind] = useState<(typeof AI_KINDS)[number]["value"]>("resumo");
   const [extra, setExtra] = useState("");
   const [latest, setLatest] = useState<string>("");
+  const [genError, setGenError] = useState<string | null>(null);
 
+  const notesQ = useQuery({
+    queryKey: ["notes", clientId],
+    queryFn: () => listNotes({ data: { clientId } }),
+  });
+  const docsQ = useQuery({
+    queryKey: ["documents", clientId],
+    queryFn: () => listDocuments({ data: { clientId } }),
+  });
   const historyQ = useQuery({
     queryKey: ["ai", clientId],
     queryFn: () => listAIGenerations({ data: { clientId } }),
   });
 
+  const hasNotes = (notesQ.data?.length ?? 0) > 0;
+  const hasIndexedDocs = (docsQ.data ?? []).some((d) => !!(d as any).extracted_text);
+  const hasContext = hasNotes || hasIndexedDocs;
+  const prerequisitesMet = notesQ.isSuccess && docsQ.isSuccess;
+
   const gen = useMutation({
     mutationFn: () => generateAI({ data: { client_id: clientId, kind, extra_prompt: extra || undefined } }),
     onSuccess: (res) => {
       setLatest(res.output);
+      setGenError(null);
       qc.invalidateQueries({ queryKey: ["ai", clientId] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      setGenError(e.message);
+      toast.error("Erro ao gerar análise");
+    },
   });
 
   return (
@@ -433,6 +536,17 @@ function AIPanel({ clientId }: { clientId: string }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-5 space-y-4">
+          {prerequisitesMet && !hasContext && (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <Sparkles className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+              <div>
+                <p className="font-medium">Sem contexto disponível</p>
+                <p className="text-xs mt-0.5">
+                  Para gerar análises, adicione ao menos uma nota na aba <strong>Notas & Contextos</strong> ou suba uma transcrição em <strong>Documentos</strong>.
+                </p>
+              </div>
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de geração</Label>
@@ -458,13 +572,39 @@ function AIPanel({ clientId }: { clientId: string }) {
           </div>
           <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/60 -mx-5 px-5 -mb-1">
             <p className="text-xs text-muted-foreground pt-4">
-              Gemini 2.5 Flash · baseado em cadastro + notas do cliente
+              Gemini 2.5 Flash · baseado em cadastro, notas e documentos indexados
             </p>
-            <Button disabled={gen.isPending} onClick={() => gen.mutate()} className="mt-3">
+            <Button
+              disabled={gen.isPending || (prerequisitesMet && !hasContext)}
+              onClick={() => { setGenError(null); gen.mutate(); }}
+              className="mt-3"
+            >
               <Sparkles className="h-4 w-4 mr-1.5" />
               {gen.isPending ? "Gerando…" : "Gerar"}
             </Button>
           </div>
+
+          {genError && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <span>{genError}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto py-0.5 text-destructive hover:text-destructive"
+                onClick={() => { setGenError(null); gen.mutate(); }}
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          )}
+
+          {gen.isPending && (
+            <div className="space-y-2 pt-2">
+              <div className="h-3 bg-muted animate-pulse rounded w-3/4" />
+              <div className="h-3 bg-muted animate-pulse rounded w-full" />
+              <div className="h-3 bg-muted animate-pulse rounded w-2/3" />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -556,7 +696,7 @@ function EditPanel({
   return (
     <Card>
       <CardContent className="p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-3">
 
 
           <div>
@@ -585,7 +725,7 @@ function EditPanel({
           <Label>Nome</Label>
           <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <Label>Email</Label>
             <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -595,7 +735,7 @@ function EditPanel({
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <Label>{form.type === "PF" ? "CPF" : "CNPJ"}</Label>
             <Input value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} />
@@ -613,7 +753,7 @@ function EditPanel({
             </Select>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <Label>Estágio no pipeline</Label>
             <Select

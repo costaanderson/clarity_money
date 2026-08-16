@@ -4,6 +4,7 @@ import { getCockpitOverview } from "@/lib/cockpit.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -18,7 +19,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Gauge, TrendingUp, Users, Timer, Percent } from "lucide-react";
+import { Gauge, TrendingUp, Users, Timer, Percent, CalendarDays, AlertCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   BarChart,
@@ -38,13 +39,6 @@ export const Route = (createLazyFileRoute as any)("/_authenticated/cockpit")({
   component: CockpitPage,
 });
 
-const PRESETS = [
-  { key: "7", label: "Últimos 7 dias", days: 7 },
-  { key: "30", label: "Últimos 30 dias", days: 30 },
-  { key: "90", label: "Últimos 90 dias", days: 90 },
-  { key: "month", label: "Este mês", days: 0 },
-] as const;
-
 const SOURCE_COLORS: Record<string, string> = {
   instagram: "#C13584",
   landing_page: "#3B82F6",
@@ -52,56 +46,171 @@ const SOURCE_COLORS: Record<string, string> = {
   outro: "#94A3B8",
 };
 
+function buildMonthShortcuts() {
+  const now = new Date();
+  const months: { key: string; label: string; from: string; to: string }[] = [];
+  // current month
+  const thisStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const thisEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  months.push({
+    key: "month-0",
+    label: thisStart.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+    from: thisStart.toISOString(),
+    to: thisEnd.toISOString(),
+  });
+  // previous 5 months
+  for (let i = 1; i <= 5; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+    months.push({
+      key: `month-${i}`,
+      label: start.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+      from: start.toISOString(),
+      to: end.toISOString(),
+    });
+  }
+  return months;
+}
+
+function toDateInputValue(isoString: string) {
+  return isoString.slice(0, 10);
+}
+
 function CockpitPage() {
-  const [preset, setPreset] = useState<(typeof PRESETS)[number]["key"]>("30");
+  const monthShortcuts = useMemo(buildMonthShortcuts, []);
+
+  const [activeKey, setActiveKey] = useState<string>("month-0");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
 
   const { from, to } = useMemo(() => {
-    const now = new Date();
-    const to = now.toISOString();
-    let fromDate = new Date();
-    if (preset === "month") {
-      fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else {
-      const days = PRESETS.find((p) => p.key === preset)!.days;
-      fromDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    if (showCustom && customFrom && customTo) {
+      return {
+        from: new Date(customFrom).toISOString(),
+        to: new Date(customTo + "T23:59:59").toISOString(),
+      };
     }
-    return { from: fromDate.toISOString(), to };
-  }, [preset]);
+    const shortcut = monthShortcuts.find((m) => m.key === activeKey);
+    if (shortcut) return { from: shortcut.from, to: shortcut.to };
+    return { from: monthShortcuts[0].from, to: monthShortcuts[0].to };
+  }, [activeKey, showCustom, customFrom, customTo, monthShortcuts]);
+
+  const periodLabel = useMemo(() => {
+    if (showCustom && customFrom && customTo) {
+      const f = new Date(customFrom).toLocaleDateString("pt-BR");
+      const t = new Date(customTo).toLocaleDateString("pt-BR");
+      return `${f} → ${t}`;
+    }
+    const shortcut = monthShortcuts.find((m) => m.key === activeKey);
+    return shortcut
+      ? shortcut.label.charAt(0).toUpperCase() + shortcut.label.slice(1)
+      : "";
+  }, [activeKey, showCustom, customFrom, customTo, monthShortcuts]);
+
+  const isFuture = useMemo(() => new Date(to) > new Date(), [to]);
+
+  const queryKey = showCustom && customFrom && customTo
+    ? ["cockpit", "custom", customFrom, customTo]
+    : ["cockpit", activeKey];
 
   const q = useQuery({
-    queryKey: ["cockpit", preset],
+    queryKey,
     queryFn: () => getCockpitOverview({ data: { from, to } }),
+    enabled: showCustom ? !!(customFrom && customTo) : true,
   });
 
   const data = q.data;
+  const isEmpty = data && data.kpis.totalLeads === 0;
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl mx-auto">
-      <header className="flex items-end justify-between gap-4 flex-wrap">
+    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">Performance de leads</p>
           <h1 className="text-3xl font-serif flex items-center gap-2">
             <Gauge className="h-7 w-7 text-primary" /> Cockpit
           </h1>
+          {periodLabel && (
+            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+              <CalendarDays className="h-3 w-3" /> {periodLabel}
+            </p>
+          )}
         </div>
-        <div className="flex gap-1 rounded-lg border p-1 bg-muted/30">
-          {PRESETS.map((p) => (
+
+        <div className="flex flex-col gap-2 items-start md:items-end">
+          {/* Month shortcuts */}
+          <div className="flex gap-1 flex-wrap justify-start md:justify-end">
+            {monthShortcuts.map((m) => (
+              <Button
+                key={m.key}
+                size="sm"
+                variant={!showCustom && activeKey === m.key ? "default" : "outline"}
+                className="text-xs h-7 px-2 capitalize"
+                onClick={() => { setActiveKey(m.key); setShowCustom(false); }}
+              >
+                {m.label}
+              </Button>
+            ))}
             <Button
-              key={p.key}
-              variant={preset === p.key ? "default" : "ghost"}
               size="sm"
-              onClick={() => setPreset(p.key)}
+              variant={showCustom ? "default" : "outline"}
+              className="text-xs h-7 px-2"
+              onClick={() => setShowCustom((v) => !v)}
             >
-              {p.label}
+              Personalizado
             </Button>
-          ))}
+          </div>
+
+          {/* Custom date range inputs */}
+          {showCustom && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                className="h-7 text-xs w-36"
+                value={customFrom}
+                max={toDateInputValue(new Date().toISOString())}
+                onChange={(e) => setCustomFrom(e.target.value)}
+              />
+              <span className="text-xs text-muted-foreground">até</span>
+              <Input
+                type="date"
+                className="h-7 text-xs w-36"
+                value={customTo}
+                min={customFrom || undefined}
+                onChange={(e) => setCustomTo(e.target.value)}
+              />
+            </div>
+          )}
         </div>
       </header>
+
+      {isFuture && (
+        <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          O período selecionado inclui datas futuras — os dados parciais serão exibidos.
+        </div>
+      )}
+
+      {showCustom && (!customFrom || !customTo) && (
+        <p className="text-sm text-muted-foreground">
+          Selecione as datas de início e fim para visualizar os dados.
+        </p>
+      )}
 
       {q.isLoading && <p className="text-sm text-muted-foreground">Carregando dados…</p>}
       {q.isError && <p className="text-sm text-destructive">Erro ao carregar cockpit.</p>}
 
-      {data && (
+      {isEmpty && !q.isLoading && (
+        <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+          <Gauge className="h-10 w-10 text-muted-foreground/40" />
+          <p className="font-medium text-muted-foreground">Nenhum dado no período selecionado</p>
+          <p className="text-sm text-muted-foreground">Tente selecionar outro mês ou um intervalo diferente.</p>
+        </div>
+      )}
+
+      {data && !isEmpty && (
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -183,7 +292,7 @@ function CockpitPage() {
             <CardHeader>
               <CardTitle className="text-base font-serif">Conversão por origem</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -239,7 +348,7 @@ function CockpitPage() {
                     <div className="space-y-1.5">
                       {f.stages.map((s) => (
                         <div key={s.stage} className="flex items-center gap-3 text-sm">
-                          <span className="w-40 text-muted-foreground truncate">{s.label}</span>
+                          <span className="w-24 sm:w-40 text-muted-foreground truncate">{s.label}</span>
                           <div className="flex-1 h-5 bg-muted rounded overflow-hidden">
                             <div
                               className="h-full transition-all"
@@ -271,7 +380,7 @@ function CockpitPage() {
               <AccordionTrigger className="text-sm">
                 Detalhamento por campanha ({data.campaigns.length})
               </AccordionTrigger>
-              <AccordionContent>
+              <AccordionContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

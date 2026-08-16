@@ -36,7 +36,7 @@ function CategoriesPage() {
   });
 
   return (
-    <div className="p-8 max-w-3xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
       <header>
         <p className="text-sm text-muted-foreground">Organização</p>
         <h1 className="text-3xl font-serif">Categorias</h1>

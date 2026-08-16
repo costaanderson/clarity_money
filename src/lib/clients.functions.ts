@@ -134,23 +134,30 @@ export const PIPELINE_STAGES = [
   { key: "em_andamento", label: "Em andamento" },
 ] as const;
 
-export type PipelineStage = typeof PIPELINE_STAGES[number]["key"];
+export const PIPELINE_STAGE_FINALIZADO = { key: "finalizado", label: "Finalizado" } as const;
+
+export type PipelineStage = typeof PIPELINE_STAGES[number]["key"] | "finalizado";
 
 const pipelineStageEnum = z.enum([
-  "novo","primeiro_contato","reuniao_agendada","reuniao_realizada","fechamento","contrato_enviado","em_andamento",
+  "novo","primeiro_contato","reuniao_agendada","reuniao_realizada","fechamento","contrato_enviado","em_andamento","finalizado",
 ]);
 
 export const listPipeline = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator((input: { includeFinalized?: boolean } | undefined) => input ?? {})
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
       .from("clients")
-      .select("id,name,type,status,pipeline_stage,pipeline_order,last_contact_at,category_id,source,source_campaign,categories(id,name,color)")
+      .select("id,name,type,status,pipeline_stage,pipeline_order,last_contact_at,finalized_at,category_id,source,source_campaign,categories(id,name,color)")
       .neq("status", "arquivado")
       .order("pipeline_order", { ascending: true })
       .order("updated_at", { ascending: false });
+    if (!data.includeFinalized) {
+      q = q.neq("pipeline_stage", "finalizado");
+    }
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return rows ?? [];
   });
 
 export const moveClientStage = createServerFn({ method: "POST" })
@@ -163,9 +170,18 @@ export const moveClientStage = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const update: Record<string, unknown> = {
+      pipeline_stage: data.stage,
+      pipeline_order: data.order,
+    };
+    if (data.stage === "finalizado") {
+      update.finalized_at = new Date().toISOString();
+    } else {
+      update.finalized_at = null;
+    }
     const { error } = await context.supabase
       .from("clients")
-      .update({ pipeline_stage: data.stage, pipeline_order: data.order })
+      .update(update)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };

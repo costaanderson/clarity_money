@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
 
 function startOfWeek(d = new Date()) {
   const day = d.getDay(); // 0 = sun
@@ -10,13 +11,23 @@ function startOfWeek(d = new Date()) {
   return s;
 }
 
+export function getWeekRange(offset: number): { weekStart: Date; weekEnd: Date } {
+  const base = startOfWeek();
+  base.setDate(base.getDate() + offset * 7);
+  const weekEnd = new Date(base);
+  weekEnd.setDate(base.getDate() + 7);
+  return { weekStart: base, weekEnd };
+}
+
 export const getWeekDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const weekStart = startOfWeek();
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
+  .inputValidator((input: unknown) =>
+    z.object({ weekOffset: z.number().int().default(0) }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { weekStart, weekEnd } = getWeekRange(data.weekOffset);
     const now = new Date();
+    const isCurrentWeek = data.weekOffset === 0;
 
     const [events, tasks, clients, leads, overdueRes] = await Promise.all([
       context.supabase
@@ -50,16 +61,18 @@ export const getWeekDashboard = createServerFn({ method: "GET" })
     return {
       weekStart: weekStart.toISOString(),
       weekEnd: weekEnd.toISOString(),
+      isCurrentWeek,
+      weekOffset: data.weekOffset,
       events: events.data ?? [],
       tasks: tasks.data ?? [],
-      overdueTasks: overdueRes.data ?? [],
+      overdueTasks: isCurrentWeek ? (overdueRes.data ?? []) : [],
       counts: {
         activeClients: clients.count ?? 0,
         leads: leads.count ?? 0,
         clientsThisWeek: clientIds.size,
         eventsThisWeek: (events.data ?? []).length,
         tasksThisWeek: (tasks.data ?? []).length,
-        overdue: (overdueRes.data ?? []).length,
+        overdue: isCurrentWeek ? (overdueRes.data ?? []).length : 0,
       },
     };
   });

@@ -2,8 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-2.5-flash";
+const AI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const MODEL = "gemini-2.5-flash";
 
 type Kind = "resumo" | "mensagem" | "analise" | "briefing";
 
@@ -19,8 +20,8 @@ const SYSTEM_PROMPTS: Record<Kind, string> = {
 };
 
 async function callGemini(system: string, user: string) {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY ausente");
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) throw new Error("GOOGLE_AI_API_KEY ausente");
   const res = await fetch(AI_URL, {
     method: "POST",
     headers: {
@@ -57,7 +58,7 @@ export const generateAI = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const [{ data: client }, { data: notes }] = await Promise.all([
+    const [{ data: client }, { data: notes }, { data: documents }] = await Promise.all([
       context.supabase.from("clients").select("*, categories(name)").eq("id", data.client_id).maybeSingle(),
       context.supabase
         .from("notes")
@@ -65,8 +66,35 @@ export const generateAI = createServerFn({ method: "POST" })
         .eq("client_id", data.client_id)
         .order("created_at", { ascending: false })
         .limit(50),
+      context.supabase
+        .from("documents")
+        .select("name,extracted_text,created_at")
+        .eq("client_id", data.client_id)
+        .not("extracted_text", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(10),
     ]);
     if (!client) throw new Error("Cliente não encontrado");
+
+    const hasNotes = (notes ?? []).length > 0;
+    const hasDocs = (documents ?? []).length > 0;
+    if (!hasNotes && !hasDocs) {
+      throw new Error(
+        "Adicione ao menos uma nota ou suba um documento indexável (transcrição ou resumo em texto) para gerar a análise.",
+      );
+    }
+
+    const docsSection =
+      hasDocs
+        ? [
+            "",
+            "--- Documentos indexados ---",
+            ...(documents ?? []).map(
+              (d) =>
+                `[${d.name} — ${new Date(d.created_at).toLocaleDateString("pt-BR")}]\n${d.extracted_text}`,
+            ),
+          ]
+        : [];
 
     const contextText = [
       `Cliente: ${client.name} (${client.type})`,
@@ -79,6 +107,7 @@ export const generateAI = createServerFn({ method: "POST" })
       ...(notes ?? []).map(
         (n) => `- [${n.kind}] ${new Date(n.created_at).toLocaleDateString("pt-BR")}: ${n.content}`,
       ),
+      ...docsSection,
       data.extra_prompt ? `\nInstrução adicional do planejador: ${data.extra_prompt}` : "",
     ]
       .filter(Boolean)
