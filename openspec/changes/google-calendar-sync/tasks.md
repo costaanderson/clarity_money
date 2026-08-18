@@ -1,15 +1,15 @@
 ## 1. Banco de dados — Migrations
 
-- [ ] 1.1 Criar migration: `CREATE TABLE google_calendar_tokens (user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE, access_token text NOT NULL, refresh_token text NOT NULL, expires_at timestamptz NOT NULL, google_email text, created_at timestamptz DEFAULT now())`
+- [x] 1.1 Criar migration: `CREATE TABLE google_calendar_tokens (user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE, access_token text NOT NULL, refresh_token text NOT NULL, expires_at timestamptz NOT NULL, google_email text, created_at timestamptz DEFAULT now())`
 - [x] 1.2 Criar migration: `ALTER TABLE calendar_events ADD COLUMN google_event_id text`
 - [x] 1.3 Rodar as migrations no Supabase e atualizar `src/integrations/supabase/types.ts` com os novos campos
-- [ ] 1.4 Criar política RLS em `google_calendar_tokens`: usuário só lê/escreve/deleta o próprio row (`user_id = auth.uid()`)
+- [x] 1.4 Criar política RLS em `google_calendar_tokens`: usuário só lê/escreve/deleta o próprio row (`user_id = auth.uid()`)
 
 ## 2. Variáveis de ambiente
 
-- [ ] 2.1 Adicionar `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` no `.env` local (obtidos no Google Cloud Console)
-- [ ] 2.2 Adicionar as mesmas variáveis no Vercel (Environment Variables → Production e Preview)
-- [ ] 2.3 Registrar o URI de redirect `<URL>/api/google/callback` no Google Cloud Console (Credenciais → OAuth 2.0 → URIs autorizados de redirecionamento) — tanto localhost quanto o domínio de produção
+- [x] 2.1 Adicionar `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` no `.env` local (obtidos no Google Cloud Console)
+- [x] 2.2 Adicionar as mesmas variáveis no Vercel (Environment Variables → Production e Preview)
+- [x] 2.3 Registrar o URI de redirect `<URL>/api/google/callback` no Google Cloud Console (Credenciais → OAuth 2.0 → URIs autorizados de redirecionamento) — tanto localhost quanto o domínio de produção
 
 ## 3. Server functions — Auth Google
 
@@ -53,7 +53,7 @@
 
 ## 9. Verificação final
 
-- [ ] 9.1 Testar fluxo completo: conectar → criar evento → verificar no Google Calendar → deletar → verificar remoção
-- [ ] 9.2 Testar revogação: desconectar → verificar que novos eventos não são sincronizados
-- [ ] 9.3 Testar com token expirado: forçar `expires_at` no passado no banco → verificar renovação automática
+- [x] 9.1 Testar fluxo completo: conectar → criar evento → verificar no Google Calendar → deletar → verificar remoção
+- [x] 9.2 Testar revogação: desconectar → verificar que novos eventos não são sincronizados
+- [x] 9.3 Testar com token expirado: forçar `expires_at` no passado no banco → verificar renovação automática
 - [x] 9.4 Verificar build sem erros após todas as alterações

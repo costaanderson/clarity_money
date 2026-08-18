@@ -10,7 +10,7 @@
 
 - [x] 2.1 Adicionar variável de ambiente `GOOGLE_AI_API_KEY` no `.env` local e no ambiente de deploy (Netlify/equivalente)
 - [x] 2.2 Atualizar `src/lib/ai.functions.ts`: trocar `AI_URL` e `LOVABLE_API_KEY` pela URL e key do Gemini direto (`https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`)
-- [ ] 2.3 Remover variável `LOVABLE_API_KEY` dos ambientes após confirmar que a nova key funciona
+- [x] 2.3 Remover variável `LOVABLE_API_KEY` dos ambientes após confirmar que a nova key funciona
 - [ ] 2.4 Testar geração de cada `kind` (resumo, mensagem, analise, briefing) com a nova API
 
 ## 3. Extração de texto de documentos para contexto da IA

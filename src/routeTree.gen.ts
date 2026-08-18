@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as ApiPublicLeadsRouteImport } from './routes/api/public/leads'
 import { Route as ApiPublicDiagnosticoRouteImport } from './routes/api/public/diagnostico'
+import { Route as ApiGoogleCallbackRouteImport } from './routes/api/google/callback'
 
 const AuthenticatedIndexLazyRouteImport = createFileRoute('/_authenticated/')()
 const AuthenticatedTarefasLazyRouteImport = createFileRoute(
@@ -38,6 +39,9 @@ const AuthenticatedCockpitLazyRouteImport = createFileRoute(
 )()
 const AuthenticatedCategoriasLazyRouteImport = createFileRoute(
   '/_authenticated/categorias',
+)()
+const AuthenticatedBriefingLazyRouteImport = createFileRoute(
+  '/_authenticated/briefing',
 )()
 const AuthenticatedAgendaLazyRouteImport = createFileRoute(
   '/_authenticated/agenda',
@@ -128,6 +132,14 @@ const AuthenticatedCategoriasLazyRoute =
   } as any).lazy(() =>
     import('./routes/_authenticated/categorias.lazy').then((d) => d.Route),
   )
+const AuthenticatedBriefingLazyRoute =
+  AuthenticatedBriefingLazyRouteImport.update({
+    id: '/briefing',
+    path: '/briefing',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any).lazy(() =>
+    import('./routes/_authenticated/briefing.lazy').then((d) => d.Route),
+  )
 const AuthenticatedAgendaLazyRoute = AuthenticatedAgendaLazyRouteImport.update({
   id: '/agenda',
   path: '/agenda',
@@ -161,12 +173,18 @@ const ApiPublicDiagnosticoRoute = ApiPublicDiagnosticoRouteImport.update({
   path: '/api/public/diagnostico',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGoogleCallbackRoute = ApiGoogleCallbackRouteImport.update({
+  id: '/api/google/callback',
+  path: '/api/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexLazyRoute
   '/auth': typeof AuthRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/agenda': typeof AuthenticatedAgendaLazyRoute
+  '/briefing': typeof AuthenticatedBriefingLazyRoute
   '/categorias': typeof AuthenticatedCategoriasLazyRoute
   '/cockpit': typeof AuthenticatedCockpitLazyRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesLazyRoute
@@ -174,6 +192,7 @@ export interface FileRoutesByFullPath {
   '/pipeline': typeof AuthenticatedPipelineLazyRoute
   '/regras-ativacao': typeof AuthenticatedRegrasAtivacaoLazyRoute
   '/tarefas': typeof AuthenticatedTarefasLazyRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/public/diagnostico': typeof ApiPublicDiagnosticoRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
   '/clientes/$id': typeof AuthenticatedClientesIdLazyRoute
@@ -183,6 +202,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/agenda': typeof AuthenticatedAgendaLazyRoute
+  '/briefing': typeof AuthenticatedBriefingLazyRoute
   '/categorias': typeof AuthenticatedCategoriasLazyRoute
   '/cockpit': typeof AuthenticatedCockpitLazyRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesLazyRoute
@@ -191,6 +211,7 @@ export interface FileRoutesByTo {
   '/regras-ativacao': typeof AuthenticatedRegrasAtivacaoLazyRoute
   '/tarefas': typeof AuthenticatedTarefasLazyRoute
   '/': typeof AuthenticatedIndexLazyRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/public/diagnostico': typeof ApiPublicDiagnosticoRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
   '/clientes/$id': typeof AuthenticatedClientesIdLazyRoute
@@ -202,6 +223,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/_authenticated/agenda': typeof AuthenticatedAgendaLazyRoute
+  '/_authenticated/briefing': typeof AuthenticatedBriefingLazyRoute
   '/_authenticated/categorias': typeof AuthenticatedCategoriasLazyRoute
   '/_authenticated/cockpit': typeof AuthenticatedCockpitLazyRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesLazyRoute
@@ -210,6 +232,7 @@ export interface FileRoutesById {
   '/_authenticated/regras-ativacao': typeof AuthenticatedRegrasAtivacaoLazyRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasLazyRoute
   '/_authenticated/': typeof AuthenticatedIndexLazyRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/public/diagnostico': typeof ApiPublicDiagnosticoRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
   '/_authenticated/clientes/$id': typeof AuthenticatedClientesIdLazyRoute
@@ -222,6 +245,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/diagnostico'
     | '/agenda'
+    | '/briefing'
     | '/categorias'
     | '/cockpit'
     | '/configuracoes'
@@ -229,6 +253,7 @@ export interface FileRouteTypes {
     | '/pipeline'
     | '/regras-ativacao'
     | '/tarefas'
+    | '/api/google/callback'
     | '/api/public/diagnostico'
     | '/api/public/leads'
     | '/clientes/$id'
@@ -238,6 +263,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/diagnostico'
     | '/agenda'
+    | '/briefing'
     | '/categorias'
     | '/cockpit'
     | '/configuracoes'
@@ -246,6 +272,7 @@ export interface FileRouteTypes {
     | '/regras-ativacao'
     | '/tarefas'
     | '/'
+    | '/api/google/callback'
     | '/api/public/diagnostico'
     | '/api/public/leads'
     | '/clientes/$id'
@@ -256,6 +283,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/diagnostico'
     | '/_authenticated/agenda'
+    | '/_authenticated/briefing'
     | '/_authenticated/categorias'
     | '/_authenticated/cockpit'
     | '/_authenticated/configuracoes'
@@ -264,6 +292,7 @@ export interface FileRouteTypes {
     | '/_authenticated/regras-ativacao'
     | '/_authenticated/tarefas'
     | '/_authenticated/'
+    | '/api/google/callback'
     | '/api/public/diagnostico'
     | '/api/public/leads'
     | '/_authenticated/clientes/$id'
@@ -274,6 +303,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
+  ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
   ApiPublicDiagnosticoRoute: typeof ApiPublicDiagnosticoRoute
   ApiPublicLeadsRoute: typeof ApiPublicLeadsRoute
 }
@@ -357,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCategoriasLazyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/briefing': {
+      id: '/_authenticated/briefing'
+      path: '/briefing'
+      fullPath: '/briefing'
+      preLoaderRoute: typeof AuthenticatedBriefingLazyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agenda': {
       id: '/_authenticated/agenda'
       path: '/agenda'
@@ -392,11 +429,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDiagnosticoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/google/callback': {
+      id: '/api/google/callback'
+      path: '/api/google/callback'
+      fullPath: '/api/google/callback'
+      preLoaderRoute: typeof ApiGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendaLazyRoute: typeof AuthenticatedAgendaLazyRoute
+  AuthenticatedBriefingLazyRoute: typeof AuthenticatedBriefingLazyRoute
   AuthenticatedCategoriasLazyRoute: typeof AuthenticatedCategoriasLazyRoute
   AuthenticatedCockpitLazyRoute: typeof AuthenticatedCockpitLazyRoute
   AuthenticatedConfiguracoesLazyRoute: typeof AuthenticatedConfiguracoesLazyRoute
@@ -411,6 +456,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendaLazyRoute: AuthenticatedAgendaLazyRoute,
+  AuthenticatedBriefingLazyRoute: AuthenticatedBriefingLazyRoute,
   AuthenticatedCategoriasLazyRoute: AuthenticatedCategoriasLazyRoute,
   AuthenticatedCockpitLazyRoute: AuthenticatedCockpitLazyRoute,
   AuthenticatedConfiguracoesLazyRoute: AuthenticatedConfiguracoesLazyRoute,
@@ -430,6 +476,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   DiagnosticoRoute: DiagnosticoRoute,
+  ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
   ApiPublicDiagnosticoRoute: ApiPublicDiagnosticoRoute,
   ApiPublicLeadsRoute: ApiPublicLeadsRoute,
 }
