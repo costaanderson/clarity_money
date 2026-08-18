@@ -23,8 +23,11 @@ const nav = [
   { to: "/categorias", label: "Categorias", icon: Tag, end: false },
   { to: "/regras-ativacao", label: "Ativação", icon: Bell, end: false },
   { to: "/estrategia", label: "Estratégia", icon: Map, end: false },
-  // { to: "/briefing", label: "Briefing", icon: Newspaper, end: false },
   { to: "/configuracoes", label: "Configurações", icon: Settings, end: false },
+] as const;
+
+const navDisabled = [
+  { label: "Briefing", icon: Newspaper },
 ] as const;
 
 function AuthedLayout() {
@@ -80,6 +83,19 @@ function AuthedLayout() {
               </span>
             )}
           </Link>
+        ))}
+        {navDisabled.map((item) => (
+          <span
+            key={item.label}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/30 cursor-not-allowed select-none"
+            title="Em breve"
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+            <span className="ml-auto text-[10px] font-medium bg-sidebar-accent/50 text-sidebar-foreground/40 rounded px-1.5 py-0.5">
+              Em breve
+            </span>
+          </span>
         ))}
       </nav>
       <div className="p-3 border-t">
@@ -146,6 +162,19 @@ function AuthedLayout() {
                 </span>
               )}
             </Link>
+          ))}
+          {navDisabled.map((item) => (
+            <span
+              key={item.label}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/30 cursor-not-allowed select-none"
+              title="Em breve"
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+              <span className="ml-auto text-[10px] font-medium bg-sidebar-accent/50 text-sidebar-foreground/40 rounded px-1.5 py-0.5">
+                Em breve
+              </span>
+            </span>
           ))}
         </nav>
         <div className="p-3 border-t">
