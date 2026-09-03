@@ -46,31 +46,26 @@ const SOURCE_COLORS: Record<string, string> = {
   outro: "#94A3B8",
 };
 
-function buildMonthShortcuts() {
+function buildPeriodShortcuts() {
   const now = new Date();
-  const months: { key: string; label: string; from: string; to: string }[] = [];
-  // current month
-  const thisStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const thisEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  months.push({
-    key: "month-0",
-    label: thisStart.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
-    from: thisStart.toISOString(),
-    to: thisEnd.toISOString(),
-  });
-  // previous 5 months
-  for (let i = 1; i <= 5; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const start = new Date(d.getFullYear(), d.getMonth(), 1);
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-    months.push({
-      key: `month-${i}`,
-      label: start.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
-      from: start.toISOString(),
-      to: end.toISOString(),
-    });
-  }
-  return months;
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+  const daysAgo = (n: number) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - n);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+  return [
+    { key: "7d",    label: "Últimos 7 dias",  from: daysAgo(6).toISOString(),   to: endOfToday.toISOString() },
+    { key: "30d",   label: "Últimos 30 dias", from: daysAgo(29).toISOString(),  to: endOfToday.toISOString() },
+    { key: "90d",   label: "Últimos 90 dias", from: daysAgo(89).toISOString(),  to: endOfToday.toISOString() },
+    { key: "month", label: "Este mês",        from: thisMonthStart.toISOString(), to: thisMonthEnd.toISOString() },
+  ];
 }
 
 function toDateInputValue(isoString: string) {
@@ -78,9 +73,9 @@ function toDateInputValue(isoString: string) {
 }
 
 function CockpitPage() {
-  const monthShortcuts = useMemo(buildMonthShortcuts, []);
+  const periodShortcuts = useMemo(buildPeriodShortcuts, []);
 
-  const [activeKey, setActiveKey] = useState<string>("month-0");
+  const [activeKey, setActiveKey] = useState<string>("30d");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showCustom, setShowCustom] = useState(false);
@@ -92,10 +87,10 @@ function CockpitPage() {
         to: new Date(customTo + "T23:59:59").toISOString(),
       };
     }
-    const shortcut = monthShortcuts.find((m) => m.key === activeKey);
+    const shortcut = periodShortcuts.find((m) => m.key === activeKey);
     if (shortcut) return { from: shortcut.from, to: shortcut.to };
-    return { from: monthShortcuts[0].from, to: monthShortcuts[0].to };
-  }, [activeKey, showCustom, customFrom, customTo, monthShortcuts]);
+    return { from: periodShortcuts[1].from, to: periodShortcuts[1].to };
+  }, [activeKey, showCustom, customFrom, customTo, periodShortcuts]);
 
   const periodLabel = useMemo(() => {
     if (showCustom && customFrom && customTo) {
@@ -103,11 +98,9 @@ function CockpitPage() {
       const t = new Date(customTo).toLocaleDateString("pt-BR");
       return `${f} → ${t}`;
     }
-    const shortcut = monthShortcuts.find((m) => m.key === activeKey);
-    return shortcut
-      ? shortcut.label.charAt(0).toUpperCase() + shortcut.label.slice(1)
-      : "";
-  }, [activeKey, showCustom, customFrom, customTo, monthShortcuts]);
+    const shortcut = periodShortcuts.find((m) => m.key === activeKey);
+    return shortcut ? shortcut.label : "";
+  }, [activeKey, showCustom, customFrom, customTo, periodShortcuts]);
 
   const isFuture = useMemo(() => new Date(to) > new Date(), [to]);
 
@@ -122,7 +115,6 @@ function CockpitPage() {
   });
 
   const data = q.data;
-  const isEmpty = data && data.kpis.totalLeads === 0;
 
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -140,14 +132,14 @@ function CockpitPage() {
         </div>
 
         <div className="flex flex-col gap-2 items-start md:items-end">
-          {/* Month shortcuts */}
+          {/* Period shortcuts */}
           <div className="flex gap-1 flex-wrap justify-start md:justify-end">
-            {monthShortcuts.map((m) => (
+            {periodShortcuts.map((m) => (
               <Button
                 key={m.key}
                 size="sm"
                 variant={!showCustom && activeKey === m.key ? "default" : "outline"}
-                className="text-xs h-7 px-2 capitalize"
+                className="text-xs h-7 px-2"
                 onClick={() => { setActiveKey(m.key); setShowCustom(false); }}
               >
                 {m.label}
@@ -202,15 +194,7 @@ function CockpitPage() {
       {q.isLoading && <p className="text-sm text-muted-foreground">Carregando dados…</p>}
       {q.isError && <p className="text-sm text-destructive">Erro ao carregar cockpit.</p>}
 
-      {isEmpty && !q.isLoading && (
-        <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
-          <Gauge className="h-10 w-10 text-muted-foreground/40" />
-          <p className="font-medium text-muted-foreground">Nenhum dado no período selecionado</p>
-          <p className="text-sm text-muted-foreground">Tente selecionar outro mês ou um intervalo diferente.</p>
-        </div>
-      )}
-
-      {data && !isEmpty && (
+      {data && (
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

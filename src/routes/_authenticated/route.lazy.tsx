@@ -27,7 +27,7 @@ const nav = [
 ] as const;
 
 const navDisabled = [
-  { label: "Briefing", icon: Newspaper },
+  { label: "Donna", icon: Newspaper },
 ] as const;
 
 function AuthedLayout() {
