@@ -102,22 +102,33 @@ function DashboardPage() {
               {data && data.events.length === 0 && (
                 <p className="text-sm text-muted-foreground">Nenhum compromisso agendado.</p>
               )}
-              {data?.events.map((e) => (
-                <div key={e.id} className="flex items-start justify-between gap-3 border-b pb-3 last:border-0">
-                  <div>
-                    <p className="font-medium">{e.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDay(e.start_at)} · {formatTime(e.start_at)}–{formatTime(e.end_at)}
-                      {e.clients?.name ? ` · ${e.clients.name}` : ""}
-                    </p>
+              {data?.events.map((e, i) => {
+                const isGoogle = (e as any).from_google === true;
+                const key = e.id ?? `g-${(e as any).google_event_id ?? i}`;
+                return (
+                  <div key={key} className="flex items-start justify-between gap-3 border-b pb-3 last:border-0">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">{e.title}</p>
+                        {isGoogle && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600">
+                            Google
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDay(e.start_at)} · {formatTime(e.start_at)}–{formatTime(e.end_at)}
+                        {e.clients?.name ? ` · ${e.clients.name}` : ""}
+                      </p>
+                    </div>
+                    {e.clients?.id && (
+                      <Link to="/clientes/$id" params={{ id: e.clients.id }} className="text-xs text-primary underline shrink-0">
+                        abrir
+                      </Link>
+                    )}
                   </div>
-                  {e.clients?.id && (
-                    <Link to="/clientes/$id" params={{ id: e.clients.id }} className="text-xs text-primary underline">
-                      abrir
-                    </Link>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 

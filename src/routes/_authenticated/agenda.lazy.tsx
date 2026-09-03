@@ -72,11 +72,17 @@ function AgendaPage() {
           client_id: clientId === "none" ? null : clientId,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       setTitle(""); setDescription(""); setStart(""); setEnd(""); setMeet(""); setClientId("none");
-      toast.success("Compromisso criado");
+      if (googleConnected && !result.syncedToGoogle) {
+        toast.warning("Compromisso criado, mas não foi possível sincronizar com o Google Agenda. Verifique a conexão em Configurações.");
+      } else if (result.syncedToGoogle) {
+        toast.success("Compromisso criado e adicionado ao Google Agenda.");
+      } else {
+        toast.success("Compromisso criado.");
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

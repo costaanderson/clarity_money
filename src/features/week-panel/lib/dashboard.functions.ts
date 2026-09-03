@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { fetchGoogleEvents } from "@/features/agenda/lib/google-calendar.functions";
+import { getValidGoogleToken } from "@/features/agenda/lib/google-auth.functions";
 
 function startOfWeek(d = new Date()) {
   const day = d.getDay(); // 0 = sun
@@ -53,9 +55,52 @@ export const getWeekDashboard = createServerFn({ method: "GET" })
         .order("due_at"),
     ]);
 
+    // Fetch Google Calendar events (if connected)
+    const localEvents = events.data ?? [];
+    const googleToken = await getValidGoogleToken(context.userId);
+    let googleOnlyEvents: {
+      id: null;
+      google_event_id: string;
+      title: string;
+      start_at: string;
+      end_at: string;
+      clients: null;
+      from_google: true;
+    }[] = [];
+
+    if (googleToken) {
+      try {
+        const googleEvents = await fetchGoogleEvents(
+          context.userId,
+          weekStart.toISOString(),
+          weekEnd.toISOString(),
+        );
+        const localGoogleIds = new Set(
+          localEvents.map((e) => e.google_event_id).filter(Boolean),
+        );
+        googleOnlyEvents = googleEvents
+          .filter((e) => !localGoogleIds.has(e.google_event_id))
+          .map((e) => ({
+            id: null,
+            google_event_id: e.google_event_id,
+            title: e.title,
+            start_at: e.start_at,
+            end_at: e.end_at,
+            clients: null,
+            from_google: true as const,
+          }));
+      } catch {
+        // não bloqueia se Google falhar
+      }
+    }
+
+    const allEvents = [...localEvents, ...googleOnlyEvents].sort(
+      (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+    );
+
     // Unique clients scheduled this week
     const clientIds = new Set<string>();
-    (events.data ?? []).forEach((e) => e.client_id && clientIds.add(e.client_id));
+    localEvents.forEach((e) => e.client_id && clientIds.add(e.client_id));
     (tasks.data ?? []).forEach((t) => t.client_id && clientIds.add(t.client_id));
 
     return {
@@ -63,14 +108,14 @@ export const getWeekDashboard = createServerFn({ method: "GET" })
       weekEnd: weekEnd.toISOString(),
       isCurrentWeek,
       weekOffset: data.weekOffset,
-      events: events.data ?? [],
+      events: allEvents,
       tasks: tasks.data ?? [],
       overdueTasks: isCurrentWeek ? (overdueRes.data ?? []) : [],
       counts: {
         activeClients: clients.count ?? 0,
         leads: leads.count ?? 0,
         clientsThisWeek: clientIds.size,
-        eventsThisWeek: (events.data ?? []).length,
+        eventsThisWeek: allEvents.length,
         tasksThisWeek: (tasks.data ?? []).length,
         overdue: isCurrentWeek ? (overdueRes.data ?? []).length : 0,
       },
