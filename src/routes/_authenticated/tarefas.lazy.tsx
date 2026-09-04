@@ -70,9 +70,34 @@ function TasksPage() {
   });
   const toggle = useMutation({
     mutationFn: (v: { id: string; status: "pendente" | "feito" }) => setTaskStatus({ data: v }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tasks"] });
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ["tasks", { filter, range }] });
+      const prev = qc.getQueryData<Task[]>(["tasks", { filter, range }]);
+      // Atualiza o status na cache sem remover o item da lista
+      qc.setQueryData<Task[]>(["tasks", { filter, range }], (old) =>
+        (old ?? []).map((t) => (t.id === v.id ? { ...t, status: v.status } : t)),
+      );
+      return { prev };
+    },
+    onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      if (v.status === "feito") {
+        toast.success("Tarefa concluída", {
+          action: {
+            label: "Desfazer",
+            onClick: () => toggle.mutate({ id: v.id, status: "pendente" }),
+          },
+        });
+      }
+    },
+    onError: (_err, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["tasks", { filter, range }], ctx.prev);
+      toast.error("Erro ao atualizar tarefa");
+    },
+    onSettled: () => {
+      // Sincroniza com o servidor ao trocar de filtro, não imediatamente,
+      // para que o item permaneça visível e possa ser desfeito.
+      qc.invalidateQueries({ queryKey: ["tasks"], refetchType: "inactive" });
     },
   });
   const del = useMutation({

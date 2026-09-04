@@ -36,6 +36,7 @@ import { Label } from "@/shared/components/ui/label";
 import {
   Archive,
   ArchiveRestore,
+  Clock,
   Download,
   FileText,
   HelpCircle,
@@ -159,18 +160,31 @@ export function ClientDetail({ id }: { id: string }) {
                   <Phone className="h-3.5 w-3.5" />{c.phone}
                 </a>
               )}
+              {(c as any).last_contact_at && (
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  Último contato: {new Date((c as any).last_contact_at).toLocaleDateString("pt-BR")}
+                </span>
+              )}
             </div>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => markC.mutate()}
-            title="Registra a data do último contato com este cliente. Use para manter o histórico de interações atualizado."
-          >
-            Registrar contato
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={() => markC.mutate()} disabled={markC.isPending}>
+                  <Clock className="h-4 w-4 mr-1.5" />
+                  Registrar contato
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-60">
+                <p className="text-xs">
+                  Marca hoje como data do último contato. Aparece abaixo do nome do cliente e é usado pela IA e pelas Regras de Ativação para identificar clientes inativos.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {c.status !== "arquivado" ? (
             <Button variant="outline" size="sm" onClick={() => archive.mutate()}>
               <Archive className="h-4 w-4 mr-1.5" /> Arquivar
@@ -305,9 +319,9 @@ function NotesPanel({ clientId }: { clientId: string }) {
               onChange={(e) => setContent(e.target.value)}
               maxLength={NOTE_MAX}
             />
-            {nearLimit && (
-              <p className={`text-xs mt-1 text-right ${remaining <= 0 ? "text-destructive font-medium" : "text-amber-600"}`}>
-                {remaining <= 0 ? "Limite atingido" : `${remaining} caracteres restantes`}
+            {content.length > 0 && (
+              <p className={`text-xs mt-1 text-right ${remaining <= 0 ? "text-destructive font-medium" : nearLimit ? "text-amber-600" : "text-muted-foreground/50"}`}>
+                {remaining <= 0 ? "Limite atingido" : `${content.length} / ${NOTE_MAX}`}
               </p>
             )}
           </div>
@@ -411,10 +425,18 @@ function DocumentsPanel({ clientId }: { clientId: string }) {
         .from("client-documents")
         .uploadToSignedUrl(path, token, file, { contentType: file.type });
       if (upErr) throw upErr;
-      await registerDocument({
+      const result = await registerDocument({
         data: { client_id: clientId, name: file.name, mime: file.type, size: file.size, path },
       });
-      toast.success("Documento anexado");
+      if ((result as any).extracted_text) {
+        toast.success("Documento indexado", {
+          description: "Texto extraído — a IA já pode analisar este conteúdo.",
+        });
+      } else {
+        toast("Documento anexado", {
+          description: "Formato não indexado pela IA. Para análise, use arquivos .pdf, .txt ou .md.",
+        });
+      }
       qc.invalidateQueries({ queryKey: ["documents", clientId] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Falha no upload");
