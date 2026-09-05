@@ -255,12 +255,14 @@ export type Database = {
       }
       clients: {
         Row: {
+          birthday: string | null
           category_id: string | null
           created_at: string
           document: string | null
           email: string | null
           finalized_at: string | null
           id: string
+          important_dates: { label: string; month: number; day: number; year: number | null }[] | null
           landing_url: string | null
           last_contact_at: string | null
           name: string
@@ -280,12 +282,14 @@ export type Database = {
           utm_source: string | null
         }
         Insert: {
+          birthday?: string | null
           category_id?: string | null
           created_at?: string
           document?: string | null
           email?: string | null
           finalized_at?: string | null
           id?: string
+          important_dates?: { label: string; month: number; day: number; year: number | null }[] | null
           landing_url?: string | null
           last_contact_at?: string | null
           name: string
@@ -305,12 +309,14 @@ export type Database = {
           utm_source?: string | null
         }
         Update: {
+          birthday?: string | null
           category_id?: string | null
           created_at?: string
           document?: string | null
           email?: string | null
           finalized_at?: string | null
           id?: string
+          important_dates?: { label: string; month: number; day: number; year: number | null }[] | null
           landing_url?: string | null
           last_contact_at?: string | null
           name?: string

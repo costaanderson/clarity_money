@@ -4,9 +4,11 @@ import { useState } from "react";
 import {
   getDailyBriefing,
   getEngagementRadar,
+  getDateAlerts,
   type BriefingMeeting,
   type ClientWithoutMeeting,
   type RadarRule,
+  type DateAlert,
 } from "@/features/briefing/lib/briefing.functions";
 import {
   createRule,
@@ -52,6 +54,8 @@ import {
   Bell,
   UserCheck,
   UserX,
+  Cake,
+  CalendarHeart,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -148,6 +152,12 @@ function BriefingPage() {
   const radarQ = useQuery({
     queryKey: ["engagement-radar"],
     queryFn: () => getEngagementRadar(),
+    staleTime: 60_000,
+  });
+
+  const dateAlertsQ = useQuery({
+    queryKey: ["date-alerts"],
+    queryFn: () => getDateAlerts(),
     staleTime: 60_000,
   });
 
@@ -286,6 +296,7 @@ function BriefingPage() {
           </div>
         }
       >
+        <DateAlertsBlock alertsQ={dateAlertsQ} />
         <EngagementRadar
           radarQ={radarQ}
           onToggle={(id, active) => toggleRule.mutate({ id, active })}
@@ -468,6 +479,72 @@ function BriefingPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+// ─── DateAlertsBlock ─────────────────────────────────────────────────────────
+
+function DateAlertsBlock({
+  alertsQ,
+}: {
+  alertsQ: ReturnType<typeof useQuery<DateAlert[]>>;
+}) {
+  if (alertsQ.isLoading) {
+    return <Skeleton className="h-10 w-full" />;
+  }
+
+  const alerts = alertsQ.data ?? [];
+  if (alerts.length === 0) return null;
+
+  function daysLabel(days: number) {
+    if (days === 0) return "hoje";
+    if (days === 1) return "amanhã";
+    return `em ${days} dias`;
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        Datas especiais nos próximos 7 dias
+      </p>
+      {alerts.map((a, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5"
+        >
+          {a.type === "birthday" ? (
+            <Cake className="h-4 w-4 text-pink-500 shrink-0" />
+          ) : (
+            <CalendarHeart className="h-4 w-4 text-violet-500 shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm">
+              <span className="font-medium">{a.label}</span>
+              {" — "}
+              <Link
+                to="/clientes/$id"
+                params={{ id: a.clientId }}
+                className="text-primary hover:underline"
+              >
+                {a.clientName}
+              </Link>
+            </p>
+          </div>
+          <span
+            className={`text-xs font-medium shrink-0 px-2 py-0.5 rounded ${
+              a.daysUntil === 0
+                ? "bg-pink-100 text-pink-700"
+                : a.daysUntil <= 2
+                ? "bg-amber-100 text-amber-700"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {daysLabel(a.daysUntil)}
+          </span>
+        </div>
+      ))}
+      <div className="border-t pt-1" />
     </div>
   );
 }

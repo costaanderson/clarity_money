@@ -7,6 +7,7 @@ import {
   updateClient,
   PIPELINE_STAGES,
   type PipelineStage,
+  type ImportantDate,
 } from "@/features/clients/lib/clients.functions";
 import { createNote, deleteNote, listNotes } from "@/features/clients/lib/notes.functions";
 import {
@@ -44,6 +45,7 @@ import {
   Mail,
   Moon,
   Phone,
+  Plus,
   Save,
   Sparkles,
   Trash2,
@@ -721,6 +723,8 @@ function EditPanel({
     source: (client.source ?? "outro") as "instagram" | "google_ads" | "landing_page" | "indicacao" | "outro",
     source_campaign: client.source_campaign ?? "",
     notes_bio: (client as unknown as { notes_bio?: string }).notes_bio ?? "",
+    birthday: client.birthday ?? "",
+    important_dates: (client.important_dates as ImportantDate[] | null) ?? [],
   });
 
   const save = useMutation({
@@ -738,6 +742,8 @@ function EditPanel({
           pipeline_stage: form.pipeline_stage,
           source: form.source,
           source_campaign: form.source_campaign,
+          birthday: form.birthday || null,
+          important_dates: form.important_dates.length > 0 ? form.important_dates : null,
         },
       }),
     onSuccess: () => {
@@ -846,6 +852,114 @@ function EditPanel({
             placeholder="Ex.: bio-instagram, ads-black-friday"
           />
         </div>
+
+        {/* Datas especiais */}
+        <div className="pt-2 border-t space-y-3">
+          <p className="text-sm font-medium">Datas para a Donna acompanhar</p>
+          <div>
+            <Label>Aniversário</Label>
+            <Input
+              type="date"
+              value={form.birthday}
+              onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              A Donna avisará nos 7 dias anteriores ao aniversário.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Outras datas especiais</Label>
+            {form.important_dates.map((d, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  className="flex-1"
+                  placeholder="Ex.: Aniversário de casamento"
+                  value={d.label}
+                  onChange={(e) => {
+                    const next = [...form.important_dates];
+                    next[i] = { ...next[i], label: e.target.value };
+                    setForm({ ...form, important_dates: next });
+                  }}
+                />
+                <Input
+                  type="number"
+                  className="w-16"
+                  placeholder="Dia"
+                  min={1}
+                  max={31}
+                  value={d.day}
+                  onChange={(e) => {
+                    const next = [...form.important_dates];
+                    next[i] = { ...next[i], day: Number(e.target.value) };
+                    setForm({ ...form, important_dates: next });
+                  }}
+                />
+                <span className="text-muted-foreground text-sm">/</span>
+                <Input
+                  type="number"
+                  className="w-16"
+                  placeholder="Mês"
+                  min={1}
+                  max={12}
+                  value={d.month}
+                  onChange={(e) => {
+                    const next = [...form.important_dates];
+                    next[i] = { ...next[i], month: Number(e.target.value) };
+                    setForm({ ...form, important_dates: next });
+                  }}
+                />
+                <Input
+                  type="number"
+                  className="w-20"
+                  placeholder="Ano"
+                  min={2000}
+                  max={2100}
+                  value={d.year ?? ""}
+                  onChange={(e) => {
+                    const next = [...form.important_dates];
+                    next[i] = { ...next[i], year: e.target.value ? Number(e.target.value) : null };
+                    setForm({ ...form, important_dates: next });
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    setForm({
+                      ...form,
+                      important_dates: form.important_dates.filter((_, j) => j !== i),
+                    });
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground">
+              Dia / Mês / Ano (opcional — sem ano = repete todo ano)
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() =>
+                setForm({
+                  ...form,
+                  important_dates: [
+                    ...form.important_dates,
+                    { label: "", month: 1, day: 1, year: null },
+                  ],
+                })
+              }
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar data
+            </Button>
+          </div>
+        </div>
+
         <div className="flex justify-end">
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
             <Save className="h-4 w-4 mr-1" /> Salvar

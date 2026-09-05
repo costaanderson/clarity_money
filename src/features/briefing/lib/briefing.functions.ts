@@ -4,6 +4,16 @@ import { z } from "zod";
 import { fetchGoogleEvents } from "@/features/agenda/lib/google-calendar.functions";
 import { getValidGoogleToken } from "@/features/agenda/lib/google-auth.functions";
 
+// ─── Date Alerts Types ────────────────────────────────────────────────────────
+
+export type DateAlert = {
+  clientId: string;
+  clientName: string;
+  type: "birthday" | "important_date";
+  label: string;
+  daysUntil: number;
+};
+
 // ─── Engagement Radar Types ───────────────────────────────────────────────────
 
 export type RadarClient = {
@@ -292,4 +302,89 @@ export const getEngagementRadar = createServerFn({ method: "GET" })
     }
 
     return result;
+  });
+
+// ─── Date Alerts ─────────────────────────────────────────────────────────────
+
+/**
+ * Retorna alertas de aniversário e datas especiais para os próximos 7 dias.
+ * Verifica todos os clientes ativos e leads.
+ */
+export const getDateAlerts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<DateAlert[]> => {
+    const { data: clients } = await context.supabase
+      .from("clients")
+      .select("id, name, birthday, important_dates")
+      .neq("status", "arquivado");
+
+    if (!clients || clients.length === 0) return [];
+
+    const alerts: DateAlert[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const DAYS_AHEAD = 7;
+
+    function daysUntilNextOccurrence(month: number, day: number): number | null {
+      const thisYear = today.getFullYear();
+      // Tenta este ano
+      const thisYearDate = new Date(thisYear, month - 1, day);
+      thisYearDate.setHours(0, 0, 0, 0);
+      const diffThis = Math.floor((thisYearDate.getTime() - today.getTime()) / 86_400_000);
+      if (diffThis >= 0 && diffThis <= DAYS_AHEAD) return diffThis;
+      // Tenta próximo ano (virada de ano)
+      const nextYearDate = new Date(thisYear + 1, month - 1, day);
+      nextYearDate.setHours(0, 0, 0, 0);
+      const diffNext = Math.floor((nextYearDate.getTime() - today.getTime()) / 86_400_000);
+      if (diffNext >= 0 && diffNext <= DAYS_AHEAD) return diffNext;
+      return null;
+    }
+
+    for (const client of clients) {
+      // Aniversário
+      if (client.birthday) {
+        const bDate = new Date(`${client.birthday}T12:00:00`);
+        const days = daysUntilNextOccurrence(bDate.getMonth() + 1, bDate.getDate());
+        if (days !== null) {
+          alerts.push({
+            clientId: client.id,
+            clientName: client.name,
+            type: "birthday",
+            label: "Aniversário",
+            daysUntil: days,
+          });
+        }
+      }
+
+      // Datas especiais
+      const dates = (client.important_dates as { label: string; month: number; day: number; year: number | null }[] | null) ?? [];
+      for (const d of dates) {
+        // Evento único: só mostra no ano correto
+        if (d.year !== null && d.year !== today.getFullYear()) continue;
+
+        const days = d.year !== null
+          ? (() => {
+              const eventDate = new Date(d.year, d.month - 1, d.day);
+              eventDate.setHours(0, 0, 0, 0);
+              const diff = Math.floor((eventDate.getTime() - today.getTime()) / 86_400_000);
+              return diff >= 0 && diff <= DAYS_AHEAD ? diff : null;
+            })()
+          : daysUntilNextOccurrence(d.month, d.day);
+
+        if (days !== null) {
+          alerts.push({
+            clientId: client.id,
+            clientName: client.name,
+            type: "important_date",
+            label: d.label,
+            daysUntil: days,
+          });
+        }
+      }
+    }
+
+    // Ordena por urgência (mais próximo primeiro)
+    alerts.sort((a, b) => a.daysUntil - b.daysUntil);
+
+    return alerts;
   });

@@ -11,6 +11,15 @@ export const CLIENT_SOURCES = [
 ] as const;
 export type ClientSource = typeof CLIENT_SOURCES[number]["key"];
 
+export const importantDateSchema = z.object({
+  label: z.string().min(1).max(120),
+  month: z.number().int().min(1).max(12),
+  day: z.number().int().min(1).max(31),
+  year: z.number().int().min(1900).max(2100).nullable(),
+});
+
+export type ImportantDate = z.infer<typeof importantDateSchema>;
+
 const clientSchema = z.object({
   type: z.enum(["PF", "PJ"]),
   name: z.string().min(1).max(200),
@@ -22,6 +31,8 @@ const clientSchema = z.object({
   source: z.enum(["instagram", "google_ads", "landing_page", "indicacao", "outro"]).default("outro"),
   source_campaign: z.string().max(120).optional().or(z.literal("")),
   pipeline_stage: z.enum(["novo", "primeiro_contato", "reuniao_agendada", "reuniao_realizada", "fechamento", "contrato_enviado", "em_andamento"]).optional(),
+  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  important_dates: z.array(importantDateSchema).nullable().optional(),
 });
 
 export const listClients = createServerFn({ method: "GET" })
@@ -64,6 +75,8 @@ export const createClient = createServerFn({ method: "POST" })
       document: data.document || null,
       category_id: data.category_id || null,
       source_campaign: data.source_campaign || null,
+      birthday: data.birthday || null,
+      important_dates: data.important_dates ?? null,
       user_id: context.userId,
     };
     const { data: row, error } = await context.supabase.from("clients").insert(payload).select().single();
