@@ -439,7 +439,15 @@ function DocumentsPanel({ clientId }: { clientId: string }) {
       }
       qc.invalidateQueries({ queryKey: ["documents", clientId] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Falha no upload");
+      const msg = err instanceof Error ? err.message : String(err);
+      // Se o servidor retornou HTML (bucket não configurado, erro 500 etc.)
+      // evita exibir o HTML bruto no toast
+      const isHtml = msg.trimStart().startsWith("<");
+      toast.error("Falha ao enviar documento", {
+        description: isHtml
+          ? "Erro de configuração no servidor. Verifique se o bucket 'client-documents' existe no Supabase Storage."
+          : msg,
+      });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
