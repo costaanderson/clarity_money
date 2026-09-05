@@ -19,5 +19,11 @@ export default defineConfig({
     server: {
       port: 3000,
     },
+    ssr: {
+      // pdf-parse usa pdfjs-dist que referencia DOMMatrix (API de browser).
+      // Externalizar impede o Vite de bundar o pacote, deixando o Node.js
+      // carregar a versão CJS interna do pdf-parse (que é compatível com Node).
+      external: ["pdf-parse"],
+    },
   },
 });
