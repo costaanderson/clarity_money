@@ -29,9 +29,10 @@ export const createSignedUpload = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const safe = data.file_name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${context.userId}/${data.client_id}/${Date.now()}-${safe}`;
-    const { data: signed, error } = await context.supabase.storage
+    const { data: signed, error } = await supabaseAdmin.storage
       .from("client-documents")
       .createSignedUploadUrl(path);
     if (error) throw new Error(error.message);
@@ -62,7 +63,8 @@ export const registerDocument = createServerFn({ method: "POST" })
 
     // Tenta extrair texto do arquivo para indexação pela IA
     try {
-      const { data: fileData, error: downloadError } = await context.supabase.storage
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: fileData, error: downloadError } = await supabaseAdmin.storage
         .from("client-documents")
         .download(data.path);
       if (!downloadError && fileData) {
@@ -93,7 +95,8 @@ export const getDocumentUrl = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .maybeSingle();
     if (!doc) throw new Error("Documento não encontrado");
-    const { data: signed, error } = await context.supabase.storage
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error } = await supabaseAdmin.storage
       .from("client-documents")
       .createSignedUrl(doc.path, 60 * 10);
     if (error) throw new Error(error.message);
@@ -110,7 +113,8 @@ export const deleteDocument = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .maybeSingle();
     if (doc?.path) {
-      await context.supabase.storage.from("client-documents").remove([doc.path]);
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.storage.from("client-documents").remove([doc.path]);
     }
     const { error } = await context.supabase.from("documents").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
