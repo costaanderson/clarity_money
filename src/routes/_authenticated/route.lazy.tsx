@@ -1,7 +1,7 @@
 import { createLazyFileRoute, getRouteApi, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
-import { Compass, Users, LayoutDashboard, Calendar, CheckSquare, Tag, Bell, Settings, LogOut, KanbanSquare, Gauge, Map, Menu, X, Newspaper } from "lucide-react";
+import { Compass, Users, LayoutDashboard, Calendar, CheckSquare, Tag, Settings, LogOut, KanbanSquare, Gauge, Map, Menu, X, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,17 +18,15 @@ const nav = [
   { to: "/clientes", label: "Clientes", icon: Users, end: false },
   { to: "/pipeline", label: "Pipeline", icon: KanbanSquare, end: false },
   { to: "/cockpit", label: "Cockpit", icon: Gauge, end: false },
+  { to: "/briefing", label: "Donna", icon: Newspaper, end: false },
   { to: "/agenda", label: "Agenda", icon: Calendar, end: false },
   { to: "/tarefas", label: "Tarefas", icon: CheckSquare, end: false },
   { to: "/categorias", label: "Categorias", icon: Tag, end: false },
-  { to: "/regras-ativacao", label: "Ativação", icon: Bell, end: false },
   { to: "/estrategia", label: "Estratégia", icon: Map, end: false },
   { to: "/configuracoes", label: "Configurações", icon: Settings, end: false },
 ] as const;
 
-const navDisabled = [
-  { label: "Donna", icon: Newspaper },
-] as const;
+const navDisabled: never[] = [];
 
 function AuthedLayout() {
   const { user } = routeApi.useRouteContext();

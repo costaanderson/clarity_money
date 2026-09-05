@@ -4,6 +4,25 @@ import { z } from "zod";
 import { fetchGoogleEvents } from "@/features/agenda/lib/google-calendar.functions";
 import { getValidGoogleToken } from "@/features/agenda/lib/google-auth.functions";
 
+// ─── Engagement Radar Types ───────────────────────────────────────────────────
+
+export type RadarClient = {
+  id: string;
+  name: string;
+  daysSinceContact: number | null;
+  hasOpenTask: boolean;
+};
+
+export type RadarRule = {
+  id: string;
+  name: string;
+  active: boolean;
+  applies_to_status: string;
+  trigger_days_no_contact: number;
+  action: string;
+  triggeredClients: RadarClient[];
+};
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type BriefingMeeting = {
@@ -205,4 +224,72 @@ export const getDailyBriefing = createServerFn({ method: "GET" })
       loadScore,
       clientsWithoutMeeting,
     };
+  });
+
+// ─── Engagement Radar ─────────────────────────────────────────────────────────
+
+/**
+ * Retorna todas as regras de ativação, cada uma com os clientes que
+ * atualmente disparam o critério — sem criar tarefas (só leitura).
+ */
+export const getEngagementRadar = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<RadarRule[]> => {
+    const { data: rules } = await context.supabase
+      .from("activation_rules")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!rules || rules.length === 0) return [];
+
+    const result: RadarRule[] = [];
+
+    for (const rule of rules) {
+      if (!rule.active) {
+        result.push({ ...rule, triggeredClients: [] });
+        continue;
+      }
+
+      const threshold = new Date();
+      threshold.setDate(threshold.getDate() - rule.trigger_days_no_contact);
+
+      const { data: clients } = await context.supabase
+        .from("clients")
+        .select("id, name, last_contact_at, created_at")
+        .eq("status", rule.applies_to_status)
+        .or(`last_contact_at.lt.${threshold.toISOString()},last_contact_at.is.null`);
+
+      const triggeredClients: RadarClient[] = [];
+
+      for (const client of clients ?? []) {
+        const ref = client.last_contact_at ?? client.created_at;
+        const daysSinceContact = ref
+          ? Math.floor((Date.now() - new Date(ref).getTime()) / 86_400_000)
+          : null;
+
+        const { data: existing } = await context.supabase
+          .from("tasks")
+          .select("id")
+          .eq("client_id", client.id)
+          .eq("source", "regra_ativacao")
+          .eq("status", "pendente")
+          .limit(1);
+
+        triggeredClients.push({
+          id: client.id,
+          name: client.name,
+          daysSinceContact,
+          hasOpenTask: (existing?.length ?? 0) > 0,
+        });
+      }
+
+      // Mais dias sem contato primeiro
+      triggeredClients.sort(
+        (a, b) => (b.daysSinceContact ?? 999) - (a.daysSinceContact ?? 999),
+      );
+
+      result.push({ ...rule, triggeredClients });
+    }
+
+    return result;
   });
