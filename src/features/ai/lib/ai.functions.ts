@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const AI_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-2.0-flash";
 
 type Kind = "resumo" | "mensagem" | "analise" | "briefing";
 
