@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const listTasks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { clientId?: string; status?: "pendente" | "feito" | "cancelado" | "all"; range?: "week" | "overdue" | "all" } | undefined) => input ?? {})
+  .inputValidator((input: { clientId?: string; status?: "pendente" | "feito" | "cancelado" | "all"; range?: "week" | "overdue" | "all" | "today" } | undefined) => input ?? {})
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("tasks")
@@ -12,7 +12,13 @@ export const listTasks = createServerFn({ method: "GET" })
       .order("due_at", { ascending: true, nullsFirst: false });
     if (data.clientId) q = q.eq("client_id", data.clientId);
     if (data.status && data.status !== "all") q = q.eq("status", data.status);
-    if (data.range === "week") {
+    if (data.range === "today") {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setHours(23, 59, 59, 999);
+      q = q.gte("due_at", start.toISOString()).lte("due_at", end.toISOString());
+    } else if (data.range === "week") {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
       const end = new Date(start);

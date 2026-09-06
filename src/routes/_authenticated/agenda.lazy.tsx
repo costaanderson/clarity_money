@@ -173,46 +173,112 @@ function AgendaPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-2">
-        {eventsQ.data?.length === 0 && <p className="text-sm text-muted-foreground">Sem compromissos.</p>}
-        {eventsQ.data?.map((e) => {
-          const isGoogleOnly = e.from_google === true;
-          const key = isGoogleOnly ? `g-${e.google_event_id}` : e.id;
-          return (
-            <Card key={key} className={isGoogleOnly ? "opacity-80 border-dashed" : ""}>
-              <CardContent className="p-3 flex items-start gap-3">
-                <CalendarClock className="h-5 w-5 text-primary mt-1" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium">{e.title}</p>
-                    {isGoogleOnly && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600">
-                        Google Agenda
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(e.start_at).toLocaleString("pt-BR")} — {new Date(e.end_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                    {!isGoogleOnly && e.clients?.name && (
-                      <> · <Link to="/clientes/$id" params={{ id: e.clients.id }} className="underline">{e.clients.name}</Link></>
-                    )}
-                  </p>
-                  {!isGoogleOnly && e.meet_link && (
-                    <a href={e.meet_link} target="_blank" rel="noopener" className="text-xs text-primary underline">
-                      Abrir link
-                    </a>
-                  )}
-                </div>
-                {!isGoogleOnly && (
-                  <Button variant="ghost" size="icon" onClick={() => del.mutate(e.id!)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <EventsGrouped events={eventsQ.data ?? []} onDelete={(id) => del.mutate(id)} />
+    </div>
+  );
+}
+
+// ─── EventsGrouped ────────────────────────────────────────────────────────────
+
+type EventItem = Awaited<ReturnType<typeof listEvents>>[number];
+
+function EventsGrouped({
+  events,
+  onDelete,
+}: {
+  events: EventItem[];
+  onDelete: (id: string) => void;
+}) {
+  if (events.length === 0) {
+    return <p className="text-sm text-muted-foreground">Sem compromissos no período.</p>;
+  }
+
+  // Agrupar por dia
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const byDay = new Map<string, EventItem[]>();
+  for (const e of events) {
+    const d = new Date(e.start_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key)!.push(e);
+  }
+
+  function dayLabel(key: string) {
+    const d = new Date(`${key}T12:00:00`);
+    const diff = Math.floor((d.getTime() - today.getTime()) / 86_400_000);
+    const weekday = d.toLocaleDateString("pt-BR", { weekday: "long" });
+    const date = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+    if (diff === 0) return { label: `Hoje · ${date}`, isToday: true };
+    if (diff === 1) return { label: `Amanhã · ${date}`, isToday: false };
+    if (diff === -1) return { label: `Ontem · ${date}`, isToday: false };
+    return { label: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} · ${date}`, isToday: false };
+  }
+
+  return (
+    <div className="space-y-4">
+      {[...byDay.entries()].map(([dayKey, dayEvents]) => {
+        const { label, isToday } = dayLabel(dayKey);
+        return (
+          <div key={dayKey}>
+            {/* Cabeçalho do dia */}
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`flex items-center gap-2 text-sm font-medium ${isToday ? "text-primary" : "text-foreground/70"}`}>
+                <CalendarClock className="h-4 w-4 shrink-0" />
+                {label}
+              </div>
+              <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                {dayEvents.length} reunião{dayEvents.length !== 1 ? "ões" : ""}
+              </span>
+              <div className="flex-1 border-t border-border/50" />
+            </div>
+
+            {/* Eventos do dia */}
+            <div className="grid gap-2 pl-2 border-l-2 border-border/40 ml-2">
+              {dayEvents.map((e) => {
+                const isGoogleOnly = e.from_google === true;
+                const key = isGoogleOnly ? `g-${e.google_event_id}` : e.id;
+                return (
+                  <Card key={key} className={isGoogleOnly ? "opacity-80 border-dashed" : ""}>
+                    <CardContent className="p-3 flex items-start gap-3">
+                      <div className="text-xs text-muted-foreground font-medium w-12 shrink-0 pt-0.5 text-right">
+                        {new Date(e.start_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-sm">{e.title}</p>
+                          {isGoogleOnly && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600">
+                              Google Agenda
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          até {new Date(e.end_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                          {!isGoogleOnly && e.clients?.name && (
+                            <> · <Link to="/clientes/$id" params={{ id: (e.clients as any).id }} className="underline">{(e.clients as any).name}</Link></>
+                          )}
+                        </p>
+                        {!isGoogleOnly && e.meet_link && (
+                          <a href={e.meet_link} target="_blank" rel="noopener" className="text-xs text-primary underline">
+                            Abrir link
+                          </a>
+                        )}
+                      </div>
+                      {!isGoogleOnly && (
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => onDelete(e.id!)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

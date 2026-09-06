@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { TaskEditSheet } from "@/features/tasks/components/task-edit-sheet";
@@ -29,13 +29,17 @@ type Task = Awaited<ReturnType<typeof listTasks>>[number];
 
 function TasksPage() {
   const qc = useQueryClient();
-  const [filter, setFilter] = useState<"all" | "pendente" | "feito">("pendente");
-  const [range, setRange] = useState<"all" | "week" | "overdue">("all");
+  const [filter, setFilter] = useState<"all" | "pendente" | "feito">("all");
+  const [range, setRange] = useState<"all" | "today" | "week" | "overdue">("today");
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const PAGE_SIZE = 5;
 
   const tasksQ = useQuery({
     queryKey: ["tasks", { filter, range }],
     queryFn: () => listTasks({ data: { status: filter, range } }),
+    // reset showAll quando filtro muda
+    select: (data) => data,
   });
   const clientsQ = useQuery({
     queryKey: ["clients", "select"],
@@ -149,17 +153,18 @@ function TasksPage() {
       </Card>
 
       <div className="flex items-center gap-3">
-        <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+        <Select value={filter} onValueChange={(v) => { setFilter(v as typeof filter); setShowAll(false); }}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
             <SelectItem value="pendente">Pendentes</SelectItem>
             <SelectItem value="feito">Feitas</SelectItem>
-            <SelectItem value="all">Todas</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={range} onValueChange={(v) => setRange(v as typeof range)}>
+        <Select value={range} onValueChange={(v) => { setRange(v as typeof range); setShowAll(false); }}>
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
+            <SelectItem value="today">Hoje</SelectItem>
             <SelectItem value="all">Qualquer data</SelectItem>
             <SelectItem value="week">Esta semana</SelectItem>
             <SelectItem value="overdue">Atrasadas</SelectItem>
@@ -169,7 +174,7 @@ function TasksPage() {
 
       <div className="grid gap-2">
         {tasksQ.data?.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma tarefa.</p>}
-        {tasksQ.data?.map((t) => (
+        {(showAll ? tasksQ.data : tasksQ.data?.slice(0, PAGE_SIZE))?.map((t) => (
           <Card key={t.id}>
             <CardContent className="p-3 flex items-start gap-3">
               <Checkbox
@@ -220,6 +225,15 @@ function TasksPage() {
             </CardContent>
           </Card>
         ))}
+        {!showAll && (tasksQ.data?.length ?? 0) > PAGE_SIZE && (
+          <button
+            className="w-full text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 py-2 transition-colors"
+            onClick={() => setShowAll(true)}
+          >
+            <ChevronDown className="h-4 w-4" />
+            Ver mais {(tasksQ.data?.length ?? 0) - PAGE_SIZE} tarefa{(tasksQ.data?.length ?? 0) - PAGE_SIZE !== 1 ? "s" : ""}
+          </button>
+        )}
       </div>
 
       <TaskEditSheet
