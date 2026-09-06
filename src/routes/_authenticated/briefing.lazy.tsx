@@ -11,6 +11,10 @@ import {
   type DateAlert,
 } from "@/features/briefing/lib/briefing.functions";
 import {
+  generateDonnaBriefing,
+  getTodayDonnaBriefing,
+} from "@/features/briefing/lib/donna-ai.functions";
+import {
   createRule,
   deleteRule,
   runActivationRules,
@@ -56,6 +60,9 @@ import {
   UserX,
   Cake,
   CalendarHeart,
+  Sparkles,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -159,6 +166,18 @@ function BriefingPage() {
     queryKey: ["date-alerts"],
     queryFn: () => getDateAlerts(),
     staleTime: 60_000,
+  });
+
+  const donnaBriefingQ = useQuery({
+    queryKey: ["donna-briefing-today"],
+    queryFn: () => getTodayDonnaBriefing(),
+    staleTime: 5 * 60_000,
+  });
+
+  const generateBriefing = useMutation({
+    mutationFn: () => generateDonnaBriefing(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["donna-briefing-today"] }),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const addRule = useMutation({
@@ -267,6 +286,13 @@ function BriefingPage() {
           value={isLoading ? null : (b?.pendingCount ?? 0)}
         />
       </div>
+
+      {/* Briefing IA */}
+      <DonnaBriefingCard
+        briefingQ={donnaBriefingQ}
+        onGenerate={() => generateBriefing.mutate()}
+        isGenerating={generateBriefing.isPending}
+      />
 
       {/* SEÇÃO A — Engajamento */}
       <Section
@@ -480,6 +506,91 @@ function BriefingPage() {
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+// ─── DonnaBriefingCard ────────────────────────────────────────────────────────
+
+function DonnaBriefingCard({
+  briefingQ,
+  onGenerate,
+  isGenerating,
+}: {
+  briefingQ: ReturnType<typeof useQuery<{ content: string; generatedAt: string } | null>>;
+  onGenerate: () => void;
+  isGenerating: boolean;
+}) {
+  const briefing = briefingQ.data;
+  const isLoading = briefingQ.isLoading;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="text-base font-serif flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            Briefing Donna · IA
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {briefing && (
+              <span className="text-xs text-muted-foreground">
+                Gerado às {new Date(briefing.generatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+            <Button
+              size="sm"
+              variant={briefing ? "outline" : "default"}
+              className="h-7 text-xs gap-1.5"
+              onClick={onGenerate}
+              disabled={isGenerating || isLoading}
+            >
+              {isGenerating ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : briefing ? (
+                <RefreshCw className="h-3 w-3" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
+              {isGenerating ? "Gerando…" : briefing ? "Regenerar" : "Gerar briefing"}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {isLoading && <Skeleton className="h-20 w-full" />}
+
+        {!isLoading && !briefing && !isGenerating && (
+          <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
+            <Sparkles className="h-7 w-7 mx-auto text-amber-400" />
+            <div>
+              <p className="text-sm font-medium">Briefing do dia ainda não foi gerado</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                A Donna vai analisar sua agenda, notas dos clientes, tarefas e radar de engajamento
+                e preparar o briefing completo do dia para você.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!isLoading && isGenerating && (
+          <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
+            <Loader2 className="h-7 w-7 mx-auto text-amber-400 animate-spin" />
+            <p className="text-sm text-muted-foreground">
+              A Donna está preparando seu briefing…
+            </p>
+          </div>
+        )}
+
+        {!isLoading && briefing && !isGenerating && (
+          <div
+            className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-foreground/90 bg-muted/30 rounded-lg p-4 max-h-[600px] overflow-y-auto"
+          >
+            {briefing.content}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
