@@ -630,7 +630,7 @@ function AIPanel({ clientId }: { clientId: string }) {
           </div>
           <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/60 -mx-5 px-5 -mb-1">
             <p className="text-xs text-muted-foreground pt-4">
-              Gemini 2.5 Flash · baseado em cadastro, notas e documentos indexados
+              Gemini 3.6 Flash · baseado em cadastro, notas e documentos indexados
             </p>
             <Button
               disabled={gen.isPending || (prerequisitesMet && !hasContext)}

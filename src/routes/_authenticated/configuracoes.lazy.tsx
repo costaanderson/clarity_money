@@ -2,7 +2,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle } from "lucide-react";
+import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle, HardDrive } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listIntakeTokens,
@@ -13,6 +13,9 @@ import {
   getGoogleAuthUrl,
   getGoogleConnectionStatus,
   revokeGoogleCalendar,
+  getGoogleDriveAuthUrl,
+  getGoogleDriveConnectionStatus,
+  revokeGoogleDrive,
 } from "@/features/agenda/lib/google-auth.functions";
 import { Badge } from "@/shared/components/ui/badge";
 import { useState, useCallback, useEffect } from "react";
@@ -26,11 +29,15 @@ function SettingsPage() {
   // Handle OAuth callback query params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("connected") === "1") {
+    const connected = params.get("connected");
+    if (connected === "calendar") {
       toast.success("Google Agenda conectado com sucesso!");
       window.history.replaceState({}, "", window.location.pathname);
+    } else if (connected === "drive") {
+      toast.success("Google Drive conectado com sucesso!");
+      window.history.replaceState({}, "", window.location.pathname);
     } else if (params.get("error") === "google_auth_failed") {
-      toast.error("Não foi possível conectar o Google Agenda. Tente novamente.");
+      toast.error("Não foi possível conectar. Tente novamente.");
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -44,6 +51,8 @@ function SettingsPage() {
 
       <GoogleCalendarCard />
 
+      <GoogleDriveCard />
+
       <TrackingURLsCard />
 
       <IntakeTokensCard />
@@ -55,7 +64,7 @@ function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-1">
-          <p>A IA da Bússola usa o modelo <strong>Gemini 2.5 Flash</strong> diretamente via Google AI API.</p>
+          <p>A IA da Bússola usa o modelo <strong>Gemini 3.6 Flash</strong> diretamente via Google AI API.</p>
           <p>As gerações são baseadas no cadastro, notas e documentos indexados do cliente.</p>
         </CardContent>
       </Card>
@@ -138,6 +147,77 @@ function GoogleCalendarCard() {
           <Button variant="outline" onClick={handleConnect}>
             <CalendarClock className="h-4 w-4 mr-2" />
             Conectar Google Agenda
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function GoogleDriveCard() {
+  const qc = useQueryClient();
+  const statusQ = useQuery({
+    queryKey: ["google-drive-status"],
+    queryFn: () => getGoogleDriveConnectionStatus(),
+  });
+
+  const revoke = useMutation({
+    mutationFn: () => revokeGoogleDrive(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["google-drive-status"] });
+      toast.success("Google Drive desconectado.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  async function handleConnect() {
+    try {
+      const redirectUri = `${window.location.origin}/api/google/callback`;
+      const url = await getGoogleDriveAuthUrl({ data: { redirectUri } });
+      window.location.href = url;
+    } catch {
+      toast.error("Não foi possível iniciar a conexão com o Google Drive.");
+    }
+  }
+
+  const { connected, email } = statusQ.data ?? { connected: false, email: null };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-serif flex items-center gap-2">
+          <HardDrive className="h-4 w-4" /> Google Drive
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          Conecte o Google Drive para permitir que a Donna leia arquivos e transcrições
+          armazenados na sua conta Google (acesso somente leitura).
+        </p>
+
+        {statusQ.isLoading ? (
+          <div className="h-8 w-40 rounded bg-muted animate-pulse" />
+        ) : connected ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant="outline" className="gap-1.5 border-emerald-400 text-emerald-700">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Conectado{email ? `: ${email}` : ""}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => revoke.mutate()}
+              disabled={revoke.isPending}
+              className="text-destructive border-destructive/40 hover:bg-destructive/10"
+            >
+              <XCircle className="h-3.5 w-3.5 mr-1" />
+              Desconectar
+            </Button>
+          </div>
+        ) : (
+          <Button variant="outline" onClick={handleConnect}>
+            <HardDrive className="h-4 w-4 mr-2" />
+            Conectar Google Drive
           </Button>
         )}
       </CardContent>

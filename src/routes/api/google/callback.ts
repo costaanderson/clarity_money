@@ -19,13 +19,14 @@ export const Route = (createFileRoute as any)("/api/google/callback")({
         const redirectUri = `${origin}/api/google/callback`;
 
         try {
-          const { exchangeCodeForTokens } = await import(
+          const { exchangeCodeForTokens, decodeState } = await import(
             "@/features/agenda/lib/google-auth.functions"
           );
-          await exchangeCodeForTokens(code, state, redirectUri);
-          return Response.redirect(`${origin}/configuracoes?connected=1`);
+          const { userId, service } = decodeState(state);
+          await exchangeCodeForTokens(code, userId, redirectUri, service);
+          return Response.redirect(`${origin}/configuracoes?connected=${service}`);
         } catch (e) {
-          console.error("[Google Calendar callback error]", e);
+          console.error("[Google callback error]", e);
           return Response.redirect(`${origin}/configuracoes?error=google_auth_failed`);
         }
       },
