@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clarity Money — Documento de Arquitetura</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; color: #212529; line-height: 1.6; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    .doc-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%); color: #fff; border-radius: 16px; padding: 48px 40px; margin-bottom: 40px; }
+    .doc-header .badge { display: inline-block; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2); border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 4px 12px; margin-bottom: 16px; }
+    .doc-header h1 { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
+    .doc-header p { font-size: 15px; color: rgba(255,255,255,.7); max-width: 640px; }
+    .meta-grid { display: flex; gap: 32px; margin-top: 28px; flex-wrap: wrap; }
+    .meta-item label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.5); display: block; margin-bottom: 2px; }
+    .meta-item span { font-size: 14px; font-weight: 600; color: #fff; }
+
+    .toc { background: #fff; border: 1px solid #e9ecef; border-radius: 12px; padding: 24px 28px; margin-bottom: 40px; }
+    .toc h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #6c757d; margin-bottom: 14px; }
+    .toc ol { list-style: decimal; padding-left: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 32px; }
+    .toc a { color: #0f3460; text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+
+    .section { background: #fff; border: 1px solid #e9ecef; border-radius: 12px; padding: 32px 36px; margin-bottom: 24px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #f1f3f5; }
+    .section-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .section-header h2 { font-size: 20px; font-weight: 700; }
+    .section-header .section-num { font-size: 12px; color: #adb5bd; font-weight: 600; margin-left: auto; }
+
+    h3 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6c757d; margin: 24px 0 10px; }
+    h3:first-child { margin-top: 0; }
+    p { font-size: 14px; color: #495057; margin-bottom: 10px; }
+
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; background: #f1f3f5; border: 1px solid #dee2e6; border-radius: 20px; font-size: 12px; font-weight: 500; padding: 3px 10px; color: #495057; }
+    .pill.blue   { background: #e7f5ff; border-color: #74c0fc; color: #1971c2; }
+    .pill.green  { background: #ebfbee; border-color: #8ce99a; color: #2f9e44; }
+    .pill.yellow { background: #fff9db; border-color: #ffe066; color: #e67700; }
+    .pill.purple { background: #f3f0ff; border-color: #b197fc; color: #6741d9; }
+    .pill.red    { background: #fff5f5; border-color: #ffa8a8; color: #c92a2a; }
+    .pill.gray   { background: #f8f9fa; border-color: #ced4da; color: #868e96; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+    th { background: #f8f9fa; padding: 8px 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    td { padding: 9px 12px; border-bottom: 1px solid #f1f3f5; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f9fa; }
+    td code { background: #f1f3f5; border-radius: 4px; padding: 1px 5px; font-size: 11.5px; font-family: "SF Mono", Consolas, monospace; color: #c92a2a; }
+
+    pre { background: #1a1a2e; color: #cdd9e5; border-radius: 10px; padding: 20px 24px; font-size: 12.5px; font-family: "SF Mono", Consolas, monospace; overflow-x: auto; line-height: 1.7; margin-bottom: 16px; }
+    .comment { color: #6a737d; } .key { color: #79b8ff; } .val { color: #9ecbff; } .hl { color: #f97583; }
+
+    .tree { background: #1a1a2e; border-radius: 10px; padding: 20px 24px; font-family: "SF Mono", Consolas, monospace; font-size: 12.5px; line-height: 1.8; color: #cdd9e5; overflow-x: auto; }
+    .dir { color: #79b8ff; font-weight: 600; } .file { color: #cdd9e5; } .note { color: #6a737d; }
+
+    .diagram { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 16px 0; }
+    .d-row { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .d-box { border-radius: 10px; padding: 12px 20px; font-size: 13px; font-weight: 600; text-align: center; min-width: 130px; border: 2px solid transparent; }
+    .d-box.client { background: #e7f5ff; border-color: #74c0fc; color: #1864ab; }
+    .d-box.server { background: #f3f0ff; border-color: #b197fc; color: #5f3dc4; }
+    .d-box.db     { background: #ebfbee; border-color: #8ce99a; color: #1e7e34; }
+    .d-box.ext    { background: #fff9db; border-color: #ffe066; color: #864e00; }
+    .d-box.infra  { background: #fff5f5; border-color: #ffa8a8; color: #a61e4d; }
+    .d-arrow { font-size: 22px; color: #adb5bd; line-height: 1; margin: 4px 0; }
+    .d-label { font-size: 11px; color: #6c757d; }
+
+    .callout { border-left: 4px solid #74c0fc; background: #e7f5ff; border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 12px; font-size: 13px; color: #1864ab; }
+    .callout.warn { border-color: #ffe066; background: #fff9db; color: #864e00; }
+    .callout.success { border-color: #8ce99a; background: #ebfbee; color: #1e7e34; }
+
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media(max-width:700px) { .cols { grid-template-columns: 1fr; } .toc ol { grid-template-columns: 1fr; } }
+    footer { text-align: center; font-size: 12px; color: #adb5bd; margin-top: 48px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-header">
+    <div class="badge">Documento de Arquitetura</div>
+    <h1>Clarity Money</h1>
+    <p>Plataforma SaaS para planejadores financeiros comportamentais — gestão de clientes, agenda, tarefas, pipeline, IA assistiva e briefing automatizado.</p>
+    <div class="meta-grid">
+      <div class="meta-item"><label>Repositório</label><span>costaanderson/clarity_money</span></div>
+      <div class="meta-item"><label>Tipo</label><span>Single Repo (Monolito Modular)</span></div>
+      <div class="meta-item"><label>Ambiente</label><span>Produção — Vercel</span></div>
+      <div class="meta-item"><label>Versão do doc</label><span>Setembro 2026</span></div>
+    </div>
+  </div>
+
+  <div class="toc">
+    <h2>Índice</h2>
+    <ol>
+      <li><a href="#s1">Visão Geral</a></li>
+      <li><a href="#s2">Stack Tecnológica</a></li>
+      <li><a href="#s3">Estrutura de Pastas</a></li>
+      <li><a href="#s4">Arquitetura de Runtime</a></li>
+      <li><a href="#s5">Roteamento e Páginas</a></li>
+      <li><a href="#s6">Banco de Dados</a></li>
+      <li><a href="#s7">Autenticação e Segurança</a></li>
+      <li><a href="#s8">Server Functions</a></li>
+      <li><a href="#s9">API Routes Públicas</a></li>
+      <li><a href="#s10">Feature Modules</a></li>
+      <li><a href="#s11">Integrações Externas</a></li>
+      <li><a href="#s12">Infraestrutura e Deploy</a></li>
+      <li><a href="#s13">Data Fetching e Estado</a></li>
+      <li><a href="#s14">Pontos de Atenção</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <div class="section-icon" style="background:#e7f5ff">🏗️</div>
+      <h2>1. Visão Geral</h2>
+      <span class="section-num">01 / 14</span>
+    </div>
+    <p>Clarity Money é uma <strong>aplicação SaaS full-stack de single-repo</strong> construída com TanStack Start (SSR + server functions). Não é um monorepo com workspaces — é um único projeto onde o mesmo código-base gera tanto o bundle de cliente (SPA React) quanto o servidor Node.js/Nitro que serve as APIs e realiza SSR.</p>
+    <div class="callout success">
+      <strong>Padrão central:</strong> Server Functions (<code>createServerFn</code>) são funções TypeScript que rodam exclusivamente no servidor mas são chamadas como funções comuns no cliente, com type-safety ponta a ponta e sem camada REST manual.
+    </div>
+    <h3>Diagrama de alto nível</h3>
+    <div class="diagram">
+      <div class="d-row"><div class="d-box client">Browser<br><small>React SPA</small></div></div>
+      <div class="d-arrow">⬆⬇</div>
+      <div class="d-label">SSR + Server Functions (RPC-like) / HTTPS</div>
+      <div class="d-arrow">⬆⬇</div>
+      <div class="d-row"><div class="d-box server">TanStack Start / Nitro<br><small>Node.js 24 — Serverless</small></div></div>
+      <div class="d-arrow">⬆⬇</div>
+      <div class="d-row">
+        <div class="d-box db">Supabase<br><small>Postgres + Auth + RLS</small></div>
+        <div class="d-box ext">Google APIs<br><small>Calendar OAuth2 + Gemini AI</small></div>
+      </div>
+      <div class="d-arrow">⬆⬇</div>
+      <div class="d-row"><div class="d-box infra">Vercel<br><small>Edge Network + Cron Jobs</small></div></div>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f3f0ff">⚙️</div>
+      <h2>2. Stack Tecnológica</h2>
+      <span class="section-num">02 / 14</span>
+    </div>
+    <div class="cols">
+      <div>
+        <h3>Frontend</h3>
+        <table>
+          <tr><th>Tecnologia</th><th>Uso</th></tr>
+          <tr><td><span class="pill blue">React 18</span></td><td>UI framework</td></tr>
+          <tr><td><span class="pill blue">TanStack Router</span></td><td>Roteamento file-based, type-safe</td></tr>
+          <tr><td><span class="pill blue">TanStack Query</span></td><td>Cache + data fetching no cliente</td></tr>
+          <tr><td><span class="pill blue">TanStack Start</span></td><td>SSR + Server Functions framework</td></tr>
+          <tr><td><span class="pill purple">Tailwind CSS 4</span></td><td>Estilização utility-first</td></tr>
+          <tr><td><span class="pill purple">shadcn/ui + Radix UI</span></td><td>Design system (~40 componentes)</td></tr>
+          <tr><td><span class="pill purple">Lucide React</span></td><td>Ícones SVG</td></tr>
+          <tr><td><span class="pill gray">Recharts</span></td><td>Gráficos (cockpit/KPIs)</td></tr>
+          <tr><td><span class="pill gray">React Hook Form + Zod</span></td><td>Formulários e validação</td></tr>
+          <tr><td><span class="pill gray">Sonner</span></td><td>Toast notifications</td></tr>
+          <tr><td><span class="pill gray">date-fns</span></td><td>Manipulação de datas</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>Backend / Infra</h3>
+        <table>
+          <tr><th>Tecnologia</th><th>Uso</th></tr>
+          <tr><td><span class="pill green">Nitro (via TanStack Start)</span></td><td>Runtime servidor + SSR</td></tr>
+          <tr><td><span class="pill green">Supabase</span></td><td>Postgres, Auth JWT, RLS, Storage</td></tr>
+          <tr><td><span class="pill yellow">Vercel</span></td><td>Hosting, Serverless Functions, Cron</td></tr>
+          <tr><td><span class="pill yellow">Google Calendar API v3</span></td><td>Sync de eventos via OAuth2</td></tr>
+          <tr><td><span class="pill yellow">Google Gemini AI</span></td><td>LLM — briefings e análises (gemini-3.6-flash)</td></tr>
+          <tr><td><span class="pill red">pdf-parse</span></td><td>Extração de texto de PDFs (server-only)</td></tr>
+          <tr><td><span class="pill gray">TypeScript 5.x (strict)</span></td><td>Linguagem principal</td></tr>
+          <tr><td><span class="pill gray">Vite 8</span></td><td>Bundler</td></tr>
+          <tr><td><span class="pill gray">Zod</span></td><td>Validação de inputs nas server fns</td></tr>
+          <tr><td><span class="pill gray">Node.js 24.x</span></td><td>Runtime</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <div class="section-icon" style="background:#ebfbee">📁</div>
+      <h2>3. Estrutura de Pastas</h2>
+      <span class="section-num">03 / 14</span>
+    </div>
+    <div class="tree">
+<span class="dir">clarity_money/</span><br>
+├── <span class="dir">src/</span><br>
+│   ├── <span class="dir">features/</span>               <span class="note">← domínios de negócio (feature modules)</span><br>
+│   │   ├── <span class="dir">activation-rules/</span>   <span class="note">← regras de reativação de clientes</span><br>
+│   │   ├── <span class="dir">agenda/</span>             <span class="note">← calendar events + Google Calendar OAuth</span><br>
+│   │   ├── <span class="dir">ai/</span>                 <span class="note">← geração de conteúdo IA por cliente (Gemini)</span><br>
+│   │   ├── <span class="dir">briefing/</span>           <span class="note">← Donna: briefing diário + radar de engajamento</span><br>
+│   │   ├── <span class="dir">clients/</span>            <span class="note">← CRM completo (CRUD, detalhes, notas, docs)</span><br>
+│   │   ├── <span class="dir">cockpit/</span>            <span class="note">← KPIs e métricas financeiras da carteira</span><br>
+│   │   ├── <span class="dir">diagnostic/</span>         <span class="note">← diagnóstico financeiro público (landing)</span><br>
+│   │   ├── <span class="dir">pipeline/</span>           <span class="note">← funil kanban lead→ativo→arquivado</span><br>
+│   │   ├── <span class="dir">settings/</span>           <span class="note">← configurações e integrações do usuário</span><br>
+│   │   ├── <span class="dir">tasks/</span>              <span class="note">← gestão de tarefas com filtros</span><br>
+│   │   └── <span class="dir">week-panel/</span>         <span class="note">← painel da semana (dashboard principal)</span><br>
+│   ├── <span class="dir">routes/</span>                 <span class="note">← roteamento file-based (TanStack Router)</span><br>
+│   │   ├── <span class="dir">_authenticated/</span>     <span class="note">← layout protegido + todas as páginas da app</span><br>
+│   │   ├── <span class="dir">api/</span><br>
+│   │   │   ├── <span class="dir">cron/</span>            <span class="note">← donna-briefing.ts (Vercel Cron)</span><br>
+│   │   │   ├── <span class="dir">google/</span>          <span class="note">← callback.ts (OAuth2 Google)</span><br>
+│   │   │   └── <span class="dir">public/</span>          <span class="note">← leads.ts, diagnostico.ts (sem auth)</span><br>
+│   │   ├── <span class="file">__root.tsx</span>          <span class="note">← root layout global (providers, QueryClient)</span><br>
+│   │   ├── <span class="file">auth.tsx / auth.lazy.tsx</span>   <span class="note">← login / cadastro</span><br>
+│   │   └── <span class="file">diagnostico.tsx</span>     <span class="note">← landing page pública de diagnóstico</span><br>
+│   ├── <span class="dir">integrations/supabase/</span>  <span class="note">← client (browser), client.server.ts (admin), auth-middleware, types.ts</span><br>
+│   └── <span class="dir">shared/</span><br>
+│       ├── <span class="dir">components/ui/</span>      <span class="note">← design system shadcn/ui (~40 componentes)</span><br>
+│       ├── <span class="dir">hooks/</span>              <span class="note">← hooks utilitários reutilizáveis</span><br>
+│       ├── <span class="dir">lib/</span>                <span class="note">← cn(), utils gerais</span><br>
+│       ├── <span class="dir">types/</span>              <span class="note">← tipos TypeScript compartilhados</span><br>
+│       └── <span class="dir">utils/</span><br>
+├── <span class="dir">supabase/migrations/</span>        <span class="note">← 14 migrations SQL (histórico completo)</span><br>
+├── <span class="file">vite.config.ts</span>              <span class="note">← config Vite + Nitro preset=vercel</span><br>
+├── <span class="file">vercel.json</span>                 <span class="note">← cron jobs schedule</span><br>
+└── <span class="file">package.json</span>
+    </div>
+    <div class="callout" style="margin-top:16px">
+      <strong>Convenção de nomenclatura:</strong> <code>*.lazy.tsx</code> = carregamento lazy (code splitting). <code>route.tsx</code> = layout de grupo. Pastas prefixadas com <code>_</code> são grupos de layout sem segmento de URL (ex: <code>/_authenticated</code> não aparece na URL).
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fff9db">🔄</div>
+      <h2>4. Arquitetura de Runtime</h2>
+      <span class="section-num">04 / 14</span>
+    </div>
+    <p>O TanStack Start compila dois bundles: <strong>cliente</strong> (SPA React com code splitting) e <strong>servidor</strong> (Node.js via Nitro). No Vercel, o servidor roda como Serverless Functions com Node.js 24.</p>
+    <div class="cols">
+      <div>
+        <h3>Fluxo de Request</h3>
+        <div class="tree" style="font-size:12px">
+1. Browser faz request<br>
+2. Vercel Edge Network recebe<br>
+3. Nitro (Node 24) processa:<br>
+   ├─ Rota API? → HTTP handler direto<br>
+   └─ Rota de página?<br>
+      ├─ Executa server fns no servidor<br>
+      ├─ Renderiza React em HTML (SSR)<br>
+      └─ Hidrata no browser (SPA)
+        </div>
+      </div>
+      <div>
+        <h3>Dois clientes Supabase</h3>
+        <table>
+          <tr><th>Cliente</th><th>Chave usada</th><th>Escopo</th></tr>
+          <tr><td><code>context.supabase</code></td><td>JWT do usuário</td><td>Server fns autenticadas — respeita RLS</td></tr>
+          <tr><td><code>supabaseAdmin</code></td><td>SERVICE_ROLE_KEY</td><td>API routes e cron — bypassa RLS</td></tr>
+        </table>
+      </div>
+    </div>
+    <h3>Build Pipeline</h3>
+    <div class="tree" style="font-size:12px">
+npm run build  →  vite build<br>
+  ├── client bundle  →  dist/client/   (React SPA + chunks lazy por rota)<br>
+  └── server bundle  →  dist/server/   (Nitro → Vercel Serverless Functions)<br>
+<br>
+Preset: nitro vercel  |  Runtime: nodejs24.x  |  Entry: src/server.ts (SSR wrapper)
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f3f0ff">🗺️</div>
+      <h2>5. Roteamento e Páginas</h2>
+      <span class="section-num">05 / 14</span>
+    </div>
+    <h3>Páginas autenticadas — nav principal</h3>
+    <table>
+      <tr><th>URL</th><th>Label</th><th>Descrição</th></tr>
+      <tr><td><code>/</code></td><td>Semana</td><td>Painel da semana — resumo de reuniões, tarefas urgentes e notas rápidas do dia</td></tr>
+      <tr><td><code>/clientes</code></td><td>Clientes</td><td>CRM: lista com filtros por status/categoria, busca e tela de detalhe completa por cliente</td></tr>
+      <tr><td><code>/pipeline</code></td><td>Pipeline</td><td>Kanban de funil (lead → ativo → arquivado) com histórico de movimentações</td></tr>
+      <tr><td><code>/cockpit</code></td><td>Cockpit</td><td>KPIs financeiros: MRR, ticket médio, churn, receita por período (Recharts)</td></tr>
+      <tr><td><code>/briefing</code></td><td>Donna</td><td>Briefing diário IA + radar de engajamento + alertas de datas + regras de ativação configuráveis</td></tr>
+      <tr><td><code>/agenda</code></td><td>Agenda</td><td>Compromissos agrupados por dia + criação de eventos + sync bidirecional Google Calendar</td></tr>
+      <tr><td><code>/tarefas</code></td><td>Tarefas</td><td>Gestão de tarefas com filtros de status/data, paginação por colapso (5 itens) e edição inline</td></tr>
+      <tr><td><code>/categorias</code></td><td>Categorias</td><td>CRUD de categorias de clientes</td></tr>
+      <tr><td><code>/estrategia</code></td><td>Estratégia</td><td>Planejamento estratégico da carteira</td></tr>
+      <tr><td><code>/configuracoes</code></td><td>Configurações</td><td>Integração Google Calendar, geração de lead intake token, preferências</td></tr>
+    </table>
+    <h3>Rotas públicas / especiais</h3>
+    <table>
+      <tr><th>URL</th><th>Tipo</th><th>Descrição</th></tr>
+      <tr><td><code>/auth</code></td><td>Página</td><td>Login e cadastro via Supabase Auth</td></tr>
+      <tr><td><code>/diagnostico</code></td><td>Landing Page</td><td>Diagnóstico financeiro público — captura de leads via formulário</td></tr>
+    </table>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <div class="section-icon" style="background:#ebfbee">🗄️</div>
+      <h2>6. Banco de Dados — Supabase (PostgreSQL)</h2>
+      <span class="section-num">06 / 14</span>
+    </div>
+    <div class="callout success"><strong>RLS habilitada em todas as tabelas.</strong> Queries de usuário sempre passam pelo cliente autenticado com JWT — isolamento por <code>auth.uid() = user_id</code> garantido em nível de banco.</div>
+    <h3>Tabelas (14 ao total)</h3>
+    <table>
+      <tr><th>Tabela</th><th>Propósito e campos relevantes</th><th>Relações</th></tr>
+      <tr><td><code>profiles</code></td><td>Perfil do usuário: name, email, google_calendar_connected</td><td>→ auth.users (1:1)</td></tr>
+      <tr><td><code>clients</code></td><td>CRM: name, type (PF/PJ), status, email, phone, birthday (date), important_dates (JSONB), last_contact_at, source, UTMs</td><td>→ categories, → user</td></tr>
+      <tr><td><code>categories</code></td><td>Categorias de clientes (nome + cor)</td><td>→ user</td></tr>
+      <tr><td><code>notes</code></td><td>Notas por cliente. Kinds: <em>nota</em> (sessão), <em>contexto</em> (comportamental), <em>documento</em></td><td>→ clients</td></tr>
+      <tr><td><code>documents</code></td><td>Documentos anexados (PDF). Campo extracted_text para indexação e consumo pela IA</td><td>→ clients</td></tr>
+      <tr><td><code>tasks</code></td><td>Tarefas: title, description, due_at, status (pendente/feito/cancelado), source (manual/regra_ativacao)</td><td>→ clients, → user</td></tr>
+      <tr><td><code>calendar_events</code></td><td>Compromissos: title, start_at, end_at, meet_link, google_event_id (sync bidirecional)</td><td>→ clients, → user</td></tr>
+      <tr><td><code>google_calendar_tokens</code></td><td>Tokens OAuth2 Google Calendar: access_token, refresh_token, expires_at</td><td>→ user (1:1)</td></tr>
+      <tr><td><code>activation_rules</code></td><td>Regras configuráveis: name, applies_to_status, trigger_days_no_contact, action (task/email/ambos), active</td><td>→ user</td></tr>
+      <tr><td><code>ai_generations</code></td><td>Histórico de gerações IA por cliente: kind (resumo/mensagem/analise/briefing), prompt, output</td><td>→ clients, → user</td></tr>
+      <tr><td><code>donna_briefings</code></td><td>Briefings diários gerados pela Donna IA. Indexado por (user_id, briefing_date DESC)</td><td>→ user</td></tr>
+      <tr><td><code>client_diagnostics</code></td><td>Resultados do diagnóstico financeiro público</td><td>→ clients</td></tr>
+      <tr><td><code>client_stage_history</code></td><td>Histórico de mudanças de stage/status no pipeline</td><td>→ clients</td></tr>
+      <tr><td><code>lead_intake_tokens</code></td><td>Tokens SHA-256 para ingestão de leads via landing pages externas</td><td>→ user</td></tr>
+      <tr><td><code>lead_intake_log</code></td><td>Log de tentativas de intake: ip, ok, reason (auditoria)</td><td>→ lead_intake_tokens</td></tr>
+    </table>
+    <h3>Histórico de Migrations</h3>
+    <table>
+      <tr><th>Migration</th><th>Conteúdo</th></tr>
+      <tr><td><code>20260702_*</code> (8 arquivos)</td><td>Schema inicial completo: clients, profiles, notes, tasks, documents, calendar_events, activation_rules, categories, pipeline</td></tr>
+      <tr><td><code>20260724_*</code> (2 arquivos)</td><td>Evolução do pipeline: stages e histórico de movimentações</td></tr>
+      <tr><td><code>20260816_add_document_extracted_text</code></td><td>Campo <code>extracted_text</code> em documents para indexação IA</td></tr>
+      <tr><td><code>20260816_add_pipeline_finalized</code></td><td>Flag de finalização no pipeline</td></tr>
+      <tr><td><code>20260905_add_client_dates</code></td><td>Campos <code>birthday</code> (date) e <code>important_dates</code> (JSONB) em clients</td></tr>
+      <tr><td><code>20260906_add_donna_briefings</code></td><td>Tabela donna_briefings + RLS + índice composto user_id+briefing_date</td></tr>
+    </table>
+    <div class="callout warn">Migrations <strong>não são aplicadas automaticamente</strong> no deploy. Devem ser executadas manualmente via Supabase Dashboard (SQL Editor) ou Supabase CLI autenticado.</div>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fff5f5">🔐</div>
+      <h2>7. Autenticação e Segurança</h2>
+      <span class="section-num">07 / 14</span>
+    </div>
+    <h3>Fluxo de autenticação</h3>
+    <div class="tree" style="font-size:12px">
+1. Browser → Supabase Auth (email/senha ou magic link)<br>
+2. Supabase retorna JWT (access_token)<br>
+3. Browser envia: Authorization: Bearer &lt;JWT&gt; em cada server fn call<br>
+4. auth-middleware.ts (servidor):<br>
+   ├─ Extrai Bearer token do header da request<br>
+   ├─ Cria client Supabase autenticado com esse token<br>
+   ├─ Valida via supabase.auth.getUser()<br>
+   └─ Injeta context.supabase + context.userId na server function<br>
+5. Todas as queries do Supabase executam como o usuário → RLS ativa automaticamente
+    </div>
+    <h3>Camadas de proteção</h3>
+    <table>
+      <tr><th>Camada</th><th>Mecanismo</th></tr>
+      <tr><td>Navegação de página</td><td>TanStack Router — beforeLoad redireciona para <code>/auth</code> se não autenticado</td></tr>
+      <tr><td>Server Functions</td><td>Middleware <code>requireSupabaseAuth</code> obrigatório em todas as funções privadas</td></tr>
+      <tr><td>Banco de dados</td><td>RLS — policy <code>auth.uid() = user_id</code> em todas as tabelas</td></tr>
+      <tr><td>API routes públicas (leads)</td><td>Token hash SHA-256 no header <code>X-Lead-Token</code> + rate limit por IP</td></tr>
+      <tr><td>Cron endpoint</td><td><code>CRON_SECRET</code> validado via header <code>Authorization: Bearer</code></td></tr>
+      <tr><td>Operações admin</td><td><code>supabaseAdmin</code> (service role) exclusivo em arquivos <code>.server.ts</code> — nunca exposto ao bundle de cliente</td></tr>
+    </table>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f3f0ff">⚡</div>
+      <h2>8. Server Functions — Padrão Central</h2>
+      <span class="section-num">08 / 14</span>
+    </div>
+    <p>Server Functions são o principal mecanismo de comunicação cliente↔servidor. Não há camada REST convencional para dados autenticados. O framework serializa a chamada, rota para o servidor, executa e retorna o resultado com type-safety completa.</p>
+    <pre><span class="comment">// Definição — src/features/tasks/lib/tasks.functions.ts</span>
+<span class="key">export const</span> listTasks = <span class="hl">createServerFn</span>({ method: <span class="val">"GET"</span> })
+  .middleware([requireSupabaseAuth])          <span class="comment">// valida JWT, injeta context</span>
+  .inputValidator((input) =&gt; input ?? {})    <span class="comment">// validação/sanitização de input</span>
+  .handler(async ({ data, context }) =&gt; {    <span class="comment">// context.supabase + context.userId</span>
+    <span class="key">const</span> { data: rows } = await context.supabase
+      .from(<span class="val">"tasks"</span>)
+      .select(<span class="val">"*, clients(id,name,type)"</span>)
+      .eq(<span class="val">"user_id"</span>, context.userId);
+    <span class="key">return</span> rows ?? [];
+  });
+
+<span class="comment">// Consumo no cliente — chamada de função normal, sem fetch/axios/REST</span>
+<span class="key">const</span> tasksQ = useQuery({
+  queryKey: [<span class="val">"tasks"</span>, { filter, range }],
+  queryFn: () =&gt; <span class="hl">listTasks</span>({ data: { status: filter, range } }),
+});</pre>
+    <h3>Convenção dos arquivos por feature</h3>
+    <table>
+      <tr><th>Arquivo</th><th>Responsabilidade</th></tr>
+      <tr><td><code>src/features/*/lib/*.functions.ts</code></td><td>Server functions do domínio — exportadas e importadas diretamente pelas páginas</td></tr>
+      <tr><td><code>src/features/*/components/*.tsx</code></td><td>Componentes React reutilizáveis do domínio</td></tr>
+      <tr><td><code>src/routes/_authenticated/*.lazy.tsx</code></td><td>Página: importa server fns, monta UI com useQuery/useMutation</td></tr>
+    </table>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <div class="section-icon" style="background:#e7f5ff">🌐</div>
+      <h2>9. API Routes Públicas</h2>
+      <span class="section-num">09 / 14</span>
+    </div>
+    <p>HTTP handlers convencionais usados onde server functions não se aplicam: webhooks, OAuth callbacks, endpoints externos e cron jobs. Seguem o padrão <code>createFileRoute + server.handlers</code>.</p>
+    <table>
+      <tr><th>Endpoint</th><th>Método</th><th>Auth</th><th>Propósito</th></tr>
+      <tr>
+        <td><code>/api/public/leads</code></td>
+        <td>POST</td>
+        <td>Token SHA-256 (<code>X-Lead-Token</code>) + rate limit IP</td>
+        <td>Ingestão de leads de landing pages externas. Valida token, registra cliente em clients + log em lead_intake_log.</td>
+      </tr>
+      <tr>
+        <td><code>/api/public/diagnostico</code></td>
+        <td>POST</td>
+        <td>Público</td>
+        <td>Recebe resultado do diagnóstico financeiro público e persiste em client_diagnostics.</td>
+      </tr>
+      <tr>
+        <td><code>/api/google/callback</code></td>
+        <td>GET</td>
+        <td>OAuth2 state param</td>
+        <td>Callback OAuth2 Google Calendar. Troca authorization code por tokens e persiste em google_calendar_tokens. Redireciona para /configuracoes.</td>
+      </tr>
+      <tr>
+        <td><code>/api/cron/donna-briefing</code></td>
+        <td>GET</td>
+        <td><code>CRON_SECRET</code> Bearer</td>
+        <td>Chamado pelo Vercel Cron às 10h UTC (7h BRT). Itera todos os usuários em profiles, pula quem já tem briefing do dia, gera via Gemini e persiste em donna_briefings. Retorna {processed, skipped, errors}.</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fff9db">🧩</div>
+      <h2>10. Feature Modules</h2>
+      <span class="section-num">10 / 14</span>
+    </div>
+    <table>
+      <tr><th>Feature</th><th>Responsabilidade</th><th>Server Functions principais</th></tr>
+      <tr><td><strong>clients</strong></td><td>CRM completo — lista, filtros (status/categoria/busca), criação, edição, detalhe com notas, documentos, tarefas, gerações IA e datas especiais.</td><td>listClients, createClient, updateClient, deleteClient</td></tr>
+      <tr><td><strong>tasks</strong></td><td>Gestão de tarefas com filtros combinados (status + range de data: hoje/semana/atrasadas/todas). Suporte a tarefas manuais e geradas por regras (source=regra_ativacao). Edição via sheet lateral.</td><td>listTasks, createTask, updateTask, setTaskStatus, deleteTask</td></tr>
+      <tr><td><strong>agenda</strong></td><td>Compromissos locais agrupados por dia com sync Google Calendar. Eventos Google exibidos com badge diferenciado. Auto-refresh de token OAuth2.</td><td>listEvents, createEvent, deleteEvent, getGoogleConnectionStatus, getValidGoogleToken, fetchGoogleEvents</td></tr>
+      <tr><td><strong>briefing</strong></td><td>Donna IA — briefing diário gerado pelo Gemini (system prompt completo em 3 seções: Engajamento, Briefing, Energia). Radar de engajamento por regra. Alertas de aniversários e datas importantes (próximos 7 dias). Bloco de clientes sem reunião há 14+ dias.</td><td>getDailyBriefing, getEngagementRadar, getDateAlerts, getTodayDonnaBriefing, generateDonnaBriefing</td></tr>
+      <tr><td><strong>activation-rules</strong></td><td>Regras configuráveis inline na Donna: status do cliente + dias sem contato → ação. CRUD completo + execução manual (run all rules → cria tasks).</td><td>listRules, createRule, updateRule, deleteRule, runActivationRules</td></tr>
+      <tr><td><strong>ai</strong></td><td>Geração de conteúdo IA por cliente usando notas + documentos como contexto: resumo executivo, mensagem de reativação (2 variações WhatsApp/email), análise comportamental, briefing de reunião. Histórico salvo em ai_generations.</td><td>generateAI, listAIGenerations</td></tr>
+      <tr><td><strong>cockpit</strong></td><td>Dashboard de KPIs financeiros com períodos relativos: MRR, ticket médio, churn rate, receita acumulada, evolução de carteira (Recharts).</td><td>getCockpitData</td></tr>
+      <tr><td><strong>pipeline</strong></td><td>Kanban de funil de clientes com estágios configuráveis, drag-and-drop e histórico de movimentações em client_stage_history.</td><td>getPipelineData, moveClientStage</td></tr>
+      <tr><td><strong>week-panel</strong></td><td>Painel da semana — reuniões do dia, tarefas urgentes, notas rápidas, resumo semanal. Dashboard principal da aplicação.</td><td>getWeekPanelData</td></tr>
+      <tr><td><strong>settings</strong></td><td>Configurações do usuário: OAuth Google Calendar (connect/revoke), geração/revogação de lead intake token, preferências gerais.</td><td>getSettings, updateSettings, generateLeadToken, revokeGoogleCalendar</td></tr>
+      <tr><td><strong>diagnostic</strong></td><td>Formulário de diagnóstico financeiro público (landing). Resultado persistido via API route pública e opcionalmente convertido em lead/cliente.</td><td>(via API route pública)</td></tr>
+    </table>
+  </div>
+
+  <!-- 11 -->
+  <div class="section" id="s11">
+    <div class="section-header">
+      <div class="section-icon" style="background:#ebfbee">🔌</div>
+      <h2>11. Integrações Externas</h2>
+      <span class="section-num">11 / 14</span>
+    </div>
+    <div class="cols">
+      <div>
+        <h3>Google Calendar</h3>
+        <table>
+          <tr><th>Item</th><th>Detalhe</th></tr>
+          <tr><td>Protocolo</td><td>OAuth2 Authorization Code Flow</td></tr>
+          <tr><td>Scopes</td><td>calendar.readonly</td></tr>
+          <tr><td>Callback</td><td><code>/api/google/callback</code></td></tr>
+          <tr><td>Armazenamento</td><td>google_calendar_tokens (access + refresh + expires_at)</td></tr>
+          <tr><td>Auto-refresh</td><td>getValidGoogleToken() renova automaticamente via refresh_token</td></tr>
+          <tr><td>Env vars</td><td>GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>Google Gemini AI</h3>
+        <table>
+          <tr><th>Item</th><th>Detalhe</th></tr>
+          <tr><td>Endpoint</td><td>API OpenAI-compatible</td></tr>
+          <tr><td>URL base</td><td>generativelanguage.googleapis.com/v1beta/openai/</td></tr>
+          <tr><td>Modelo ativo</td><td>gemini-3.6-flash</td></tr>
+          <tr><td>Histórico</td><td>2.5-flash (depreciado) → 2.0-flash (depreciado) → 3.6-flash</td></tr>
+          <tr><td>Env var</td><td>GOOGLE_AI_API_KEY</td></tr>
+          <tr><td>Usos</td><td>Briefing Donna (diário/manual), resumo, análise comportamental, mensagem de reativação, briefing de reunião</td></tr>
+        </table>
+      </div>
+    </div>
+    <h3>Variáveis de Ambiente — Produção Vercel</h3>
+    <table>
+      <tr><th>Variável</th><th>Tipo</th><th>Uso</th></tr>
+      <tr><td><code>SUPABASE_URL</code></td><td>Secret</td><td>URL do projeto Supabase (server-side)</td></tr>
+      <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>Secret</td><td>Admin client — bypassa RLS</td></tr>
+      <tr><td><code>SUPABASE_PUBLISHABLE_KEY</code></td><td>Secret</td><td>Cliente anônimo/público (server-side)</td></tr>
+      <tr><td><code>VITE_SUPABASE_URL</code></td><td>Secret</td><td>Exposto ao bundle cliente (SSR hydration)</td></tr>
+      <tr><td><code>VITE_SUPABASE_PUBLISHABLE_KEY</code></td><td>Secret</td><td>Exposto ao bundle cliente</td></tr>
+      <tr><td><code>VITE_SUPABASE_PROJECT_ID</code></td><td>Secret</td><td>ID do projeto Supabase (cliente)</td></tr>
+      <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>Secret</td><td>OAuth2 Google Calendar</td></tr>
+      <tr><td><code>GOOGLE_CLIENT_SECRET</code></td><td>Secret</td><td>OAuth2 Google Calendar</td></tr>
+      <tr><td><code>GOOGLE_AI_API_KEY</code></td><td>Secret</td><td>Gemini AI (geração de briefings e análises)</td></tr>
+      <tr><td><code>OPEN_AI_KEY</code></td><td>Secret</td><td>Reservado — não usado ativamente</td></tr>
+      <tr><td><code>CRON_SECRET</code></td><td>Secret</td><td>Valida chamadas do Vercel Cron no endpoint /api/cron/donna-briefing</td></tr>
+    </table>
+  </div>
+
+  <!-- 12 -->
+  <div class="section" id="s12">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fff5f5">🚀</div>
+      <h2>12. Infraestrutura e Deploy</h2>
+      <span class="section-num">12 / 14</span>
+    </div>
+    <div class="cols">
+      <div>
+        <h3>Vercel</h3>
+        <table>
+          <tr><th>Config</th><th>Valor</th></tr>
+          <tr><td>Plano</td><td>Hobby</td></tr>
+          <tr><td>Team slug</td><td>andersonlcosta4-8923s-projects</td></tr>
+          <tr><td>Project ID</td><td>prj_dqJbtQ8fnKlu5pk9hK9eWjre01oF</td></tr>
+          <tr><td>Framework</td><td>tanstack-start-lovable</td></tr>
+          <tr><td>Runtime</td><td>Node.js 24.x</td></tr>
+          <tr><td>Preset Nitro</td><td>vercel (serverless)</td></tr>
+          <tr><td>Domínio prod</td><td>clarity-money-seven.vercel.app</td></tr>
+          <tr><td>Trigger de deploy</td><td>Push para branch main no GitHub</td></tr>
+          <tr><td>Repositório</td><td>github.com/costaanderson/clarity_money</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>Cron Job</h3>
+        <pre style="margin:0; font-size:11.5px; padding:16px">{
+  "crons": [{
+    "path": "/api/cron/donna-briefing",
+    "schedule": "0 10 * * *"
+  }]
+}</pre>
+        <p style="font-size:13px; margin-top:10px">
+          Executa diariamente às <strong>10h UTC = 07h BRT</strong>.<br>
+          Valida <code>CRON_SECRET</code> via Bearer token.<br>
+          Gera briefing Donna para todos os usuários.<br>
+          Retorna <code>{ processed, skipped, errors }</code>.
+        </p>
+      </div>
+    </div>
+    <h3>Pipeline CI/CD</h3>
+    <div class="tree" style="font-size:12px">
+git push → GitHub (branch: main)<br>
+  └→ Vercel detecta push via webhook<br>
+       └→ vercel build<br>
+            ├─ npm install<br>
+            ├─ vite build (client + server bundles)<br>
+            └─ Deploy automático → Production<br>
+                 └─ Alias: clarity-money-seven.vercel.app
+    </div>
+    <div class="callout warn" style="margin-top:16px"><strong>Atenção:</strong> Migrations SQL não são executadas automaticamente. Devem ser aplicadas manualmente via Supabase Dashboard (SQL Editor) ou Supabase CLI autenticado (<code>supabase db push</code>).</div>
+  </div>
+
+  <!-- 13 -->
+  <div class="section" id="s13">
+    <div class="section-header">
+      <div class="section-icon" style="background:#e7f5ff">📡</div>
+      <h2>13. Data Fetching e Gerenciamento de Estado</h2>
+      <span class="section-num">13 / 14</span>
+    </div>
+    <table>
+      <tr><th>Padrão</th><th>Ferramenta</th><th>Detalhe</th></tr>
+      <tr><td>Leitura</td><td>TanStack Query <code>useQuery</code></td><td>Cache automático, deduplicação, staleTime configurável. QueryKey inclui filtros para invalidação granular.</td></tr>
+      <tr><td>Mutações</td><td>TanStack Query <code>useMutation</code></td><td>Com optimistic updates em operações críticas (ex: toggle de tarefa). onSuccess invalida queries relacionadas.</td></tr>
+      <tr><td>Estado de UI</td><td>React <code>useState</code></td><td>Estado local de formulários, filtros, sheets — sem Redux/Zustand/Context global.</td></tr>
+      <tr><td>Formulários</td><td>React Hook Form + Zod</td><td>Validação client-side. Zod também usado no inputValidator das server fns (validação server-side).</td></tr>
+      <tr><td>Notificações</td><td>Sonner</td><td>Toast feedback de ações com action buttons (ex: desfazer tarefa concluída).</td></tr>
+    </table>
+    <h3>QueryKeys padrão</h3>
+    <div class="tree" style="font-size:12px">
+["tasks", { filter, range }]      ← lista de tarefas com filtros<br>
+["clients", "select"]             ← lista para dropdowns<br>
+["events", { from, to }]          ← agenda por janela de tempo<br>
+["donna-briefing-today"]          ← briefing IA do dia atual<br>
+["engagement-radar"]              ← radar de regras de ativação<br>
+["date-alerts"]                   ← alertas de aniversários/datas<br>
+["dashboard"]                     ← KPIs (invalidado em mutações de agenda/tarefas)
+    </div>
+  </div>
+
+  <!-- 14 -->
+  <div class="section" id="s14">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fff9db">⚠️</div>
+      <h2>14. Pontos de Atenção para Arquiteto / Engenheiro</h2>
+      <span class="section-num">14 / 14</span>
+    </div>
+    <h3>Pontos positivos da arquitetura atual</h3>
+    <div class="pills" style="margin-bottom:20px">
+      <span class="pill green">✓ Type-safety ponta a ponta</span>
+      <span class="pill green">✓ RLS garante isolamento por usuário</span>
+      <span class="pill green">✓ Zero boilerplate REST para dados autenticados</span>
+      <span class="pill green">✓ Feature modules bem delimitados</span>
+      <span class="pill green">✓ Sem estado global complexo (sem Redux)</span>
+      <span class="pill green">✓ SSR out-of-the-box via TanStack Start</span>
+      <span class="pill green">✓ Optimistic updates em operações críticas</span>
+    </div>
+    <h3>Dívidas técnicas e pontos a evoluir</h3>
+    <table>
+      <tr><th>Ponto</th><th>Situação atual</th><th>Recomendação</th></tr>
+      <tr><td>Migrations manuais</td><td>Aplicadas via SQL Editor no Supabase Dashboard</td><td>Integrar Supabase CLI no CI/CD ou usar Supabase branching para ambientes</td></tr>
+      <tr><td>Supabase types desatualizados</td><td><code>donna_briefings</code> usa cast <code>as any</code> por não estar no types.ts gerado automaticamente</td><td>Executar <code>supabase gen types typescript</code> após cada migration e commitar o arquivo gerado</td></tr>
+      <tr><td>System prompt duplicado</td><td>DONNA_SYSTEM_PROMPT replicado em donna-ai.functions.ts e no cron endpoint</td><td>Extrair para módulo <code>donna-prompt.server.ts</code> compartilhado</td></tr>
+      <tr><td>Sem testes automatizados</td><td>Nenhum teste no projeto</td><td>Iniciar com Vitest para server functions críticas (geração IA, regras de ativação)</td></tr>
+      <tr><td>Sem retry na API Gemini</td><td>Erros 429 tratados com mensagem mas sem retry</td><td>Implementar retry com backoff exponencial (max 3 tentativas)</td></tr>
+      <tr><td>Cron em Hobby plan</td><td>Vercel Hobby limita crons a 1/dia e horários pré-definidos</td><td>Avaliar upgrade para Pro se precisar de frequência maior</td></tr>
+      <tr><td>inputValidator deprecated</td><td>Alguns createServerFn usam .inputValidator() que foi depreciado pelo TanStack</td><td>Migrar para .validator() na próxima atualização do framework</td></tr>
+    </table>
+    <h3>Dependências críticas de negócio</h3>
+    <div class="callout warn">
+      <strong>Google Gemini API:</strong> Toda a inteligência da Donna depende do modelo <code>gemini-3.6-flash</code>. O modelo foi depreciado 2 vezes durante o desenvolvimento (2.5-flash → 2.0-flash → 3.6-flash). Monitorar changelog da API Google e manter atualizações prioritárias.
+    </div>
+    <div class="callout">
+      <strong>Supabase:</strong> Banco, autenticação e storage 100% centralizados no Supabase. Sem fallback. SLA depende do plano contratado (Free/Pro). Avaliar Pro para ambientes de produção com SLA garantido.
+    </div>
+    <div class="callout success">
+      <strong>Escalabilidade:</strong> A arquitetura serverless do Vercel + Supabase escala horizontalmente por natureza. Gargalos esperados em crescimento: (1) limite de conexões Supabase no plano Free, (2) custo de chamadas Gemini por usuário/dia no cron.
+    </div>
+  </div>
+
+  <footer>
+    Documento gerado em Setembro de 2026 &nbsp;·&nbsp; Clarity Money &nbsp;·&nbsp; Para uso interno — repasse a engenheiro e arquiteto de software
+  </footer>
+
+</div>
+</body>
+</html>
