@@ -1,10 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-
-const AI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const MODEL = "gemini-3.6-flash";
+import { callAI, getCallableAiConfig } from "./call-ai";
 
 type Kind = "resumo" | "mensagem" | "analise" | "briefing";
 
@@ -18,33 +15,6 @@ const SYSTEM_PROMPTS: Record<Kind, string> = {
   briefing:
     "Você prepara briefings de reunião para o planejador financeiro. Gere: (1) contexto rápido do cliente, (2) status das decisões em execução, (3) 3 perguntas-chave para a reunião, (4) próximo passo sugerido. Português do Brasil, no máximo 250 palavras.",
 };
-
-async function callGemini(system: string, user: string) {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
-  if (!apiKey) throw new Error("GOOGLE_AI_API_KEY ausente");
-  const res = await fetch(AI_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 429) throw new Error("Limite de requisições da IA. Tente em instantes.");
-    if (res.status === 402) throw new Error("Créditos de IA esgotados no workspace Lovable.");
-    throw new Error(`Falha na IA (${res.status}): ${text.slice(0, 200)}`);
-  }
-  const json = await res.json();
-  return json.choices?.[0]?.message?.content ?? "";
-}
 
 export const generateAI = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -84,6 +54,8 @@ export const generateAI = createServerFn({ method: "POST" })
       );
     }
 
+    const aiConfig = await getCallableAiConfig(context.userId);
+
     const docsSection =
       hasDocs
         ? [
@@ -113,7 +85,7 @@ export const generateAI = createServerFn({ method: "POST" })
       .filter(Boolean)
       .join("\n");
 
-    const output = await callGemini(SYSTEM_PROMPTS[data.kind], contextText);
+    const output = await callAI(SYSTEM_PROMPTS[data.kind], contextText, aiConfig);
 
     await context.supabase.from("ai_generations").insert({
       user_id: context.userId,

@@ -2,7 +2,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle, HardDrive, FolderOpen, Loader2 } from "lucide-react";
+import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle, HardDrive, FolderOpen, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listIntakeTokens,
@@ -18,7 +18,20 @@ import {
   revokeGoogleDrive,
   saveDriveFolder,
 } from "@/features/agenda/lib/google-auth.functions";
+import {
+  getUserAiConfigStatus,
+  saveUserAiConfig,
+  clearUserAiConfig,
+} from "@/features/ai/lib/ai-config.functions";
+import { AI_PROVIDER_LABELS, AI_DEFAULT_MODELS, type AiProvider } from "@/features/ai/lib/call-ai";
 import { Badge } from "@/shared/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -58,17 +71,7 @@ function SettingsPage() {
 
       <IntakeTokensCard />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-serif flex items-center gap-2">
-            <Sparkles className="h-4 w-4" /> IA (Gemini)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-1">
-          <p>A IA da Bússola usa o modelo <strong>Gemini 3.6 Flash</strong> diretamente via Google AI API.</p>
-          <p>As gerações são baseadas no cadastro, notas e documentos indexados do cliente.</p>
-        </CardContent>
-      </Card>
+      <AIConfigCard />
 
       <Card>
         <CardHeader>
@@ -281,6 +284,197 @@ function GoogleDriveCard() {
             <HardDrive className="h-4 w-4 mr-2" />
             Conectar Google Drive
           </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AIConfigCard() {
+  const qc = useQueryClient();
+  const [provider, setProvider] = useState<AiProvider>("gemini");
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  const statusQ = useQuery({
+    queryKey: ["user-ai-config"],
+    queryFn: () => getUserAiConfigStatus(),
+  });
+
+  // Preenche os campos com os valores atuais ao entrar em modo edição
+  useEffect(() => {
+    if (editing && statusQ.data?.provider) {
+      setProvider(statusQ.data.provider as AiProvider);
+      setModel(statusQ.data.model ?? "");
+    }
+  }, [editing, statusQ.data]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      saveUserAiConfig({ data: { provider, apiKey, model: model || undefined } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["user-ai-config"] });
+      setEditing(false);
+      setApiKey("");
+      toast.success(`IA configurada: ${AI_PROVIDER_LABELS[r.provider as AiProvider]} — ${r.model}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const clear = useMutation({
+    mutationFn: () => clearUserAiConfig(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["user-ai-config"] });
+      setEditing(false);
+      toast.success("Configuração de IA removida. Usando chave padrão do app.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const status = statusQ.data;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-serif flex items-center gap-2">
+          <Sparkles className="h-4 w-4" /> Inteligência Artificial
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        <p className="text-muted-foreground">
+          Configure sua própria API key de IA — Gemini, Claude ou OpenAI. A Donna e a IA Bússola
+          usarão a sua chave. Sem configuração própria, o app usa a chave padrão compartilhada.
+        </p>
+
+        {statusQ.isLoading ? (
+          <div className="h-8 w-48 rounded bg-muted animate-pulse" />
+        ) : !editing ? (
+          <div className="space-y-3">
+            {/* Status atual */}
+            {status?.hasKey && status.provider ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="outline" className="gap-1.5 border-emerald-400 text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {AI_PROVIDER_LABELS[status.provider as AiProvider]} — {status.model}
+                </Badge>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <KeyRound className="h-3 w-3" /> Chave configurada
+                </span>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Usando chave padrão do app (Gemini 3.6 Flash).
+              </p>
+            )}
+
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                {status?.hasKey ? "Alterar configuração" : "Configurar minha IA"}
+              </Button>
+              {status?.hasKey && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={clear.isPending}
+                  onClick={() => clear.mutate()}
+                  className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                >
+                  <XCircle className="h-3.5 w-3.5 mr-1" />
+                  Remover
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+            {/* Provider */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Provedor</label>
+              <Select
+                value={provider}
+                onValueChange={(v) => {
+                  setProvider(v as AiProvider);
+                  setModel("");
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(AI_PROVIDER_LABELS) as AiProvider[]).map((p) => (
+                    <SelectItem key={p} value={p} className="text-xs">
+                      {AI_PROVIDER_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* API Key */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium">API Key</label>
+              <div className="relative">
+                <Input
+                  type={showKey ? "text" : "password"}
+                  className="h-8 text-xs pr-9"
+                  placeholder={
+                    provider === "gemini"
+                      ? "AIza… (Google AI Studio)"
+                      : provider === "claude"
+                        ? "sk-ant-… (console.anthropic.com)"
+                        : "sk-proj-… (platform.openai.com)"
+                  }
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowKey((v) => !v)}
+                >
+                  {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Modelo (opcional) */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium">
+                Modelo{" "}
+                <span className="text-muted-foreground font-normal">
+                  (padrão: {AI_DEFAULT_MODELS[provider]})
+                </span>
+              </label>
+              <Input
+                className="h-8 text-xs"
+                placeholder={AI_DEFAULT_MODELS[provider]}
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                disabled={!apiKey.trim() || save.isPending}
+                onClick={() => save.mutate()}
+              >
+                {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Salvar"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEditing(false);
+                  setApiKey("");
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

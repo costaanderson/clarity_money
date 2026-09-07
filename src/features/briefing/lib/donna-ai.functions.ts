@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { fetchGoogleEvents } from "@/features/agenda/lib/google-calendar.functions";
 import { getValidGoogleToken } from "@/features/agenda/lib/google-auth.functions";
+import { callAI, getCallableAiConfig } from "@/features/ai/lib/call-ai";
 
 // ─── System Prompt da Donna ───────────────────────────────────────────────────
 
@@ -100,35 +101,6 @@ function daysUntilNextOccurrence(month: number, day: number, today: Date): numbe
     if (diff >= 0 && diff <= 7) return diff;
   }
   return null;
-}
-
-async function callGemini(system: string, user: string): Promise<string> {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
-  if (!apiKey) throw new Error("GOOGLE_AI_API_KEY ausente nas variáveis de ambiente");
-  const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-3.6-flash",
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    },
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 429) throw new Error("Limite de requisições da IA. Tente em instantes.");
-    throw new Error(`Falha na IA (${res.status}): ${text.slice(0, 300)}`);
-  }
-  const json = await res.json();
-  return json.choices?.[0]?.message?.content ?? "";
 }
 
 // ─── Server Functions ─────────────────────────────────────────────────────────
@@ -346,7 +318,10 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
 
     // ── 6. Arquivos do Google Drive ────────────────────────────────────────
     const { readDriveFolder } = await import("@/features/agenda/lib/google-drive-reader");
-    const driveFiles = await readDriveFolder(context.userId);
+    const [driveFiles, aiConfig] = await Promise.all([
+      readDriveFolder(context.userId),
+      getCallableAiConfig(context.userId),
+    ]);
 
     // ── 7. Montar userMessage ──────────────────────────────────────────────
     const dateLabel = today.toLocaleDateString("pt-BR", {
@@ -461,8 +436,8 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
 
     const userMessage = lines.join("\n");
 
-    // ── 8. Chamar Gemini ───────────────────────────────────────────────────
-    const content = await callGemini(DONNA_SYSTEM_PROMPT, userMessage);
+    // ── 8. Chamar IA ───────────────────────────────────────────────────────
+    const content = await callAI(DONNA_SYSTEM_PROMPT, userMessage, aiConfig);
 
     // ── 9. Persistir resultado ─────────────────────────────────────────────
     await context.supabase

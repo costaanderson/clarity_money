@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { fetchGoogleEvents } from "@/features/agenda/lib/google-calendar.functions";
 import { getValidGoogleToken } from "@/features/agenda/lib/google-auth.functions";
+import { callAI, getCallableAiConfig } from "@/features/ai/lib/call-ai";
 
 // ─── System Prompt (copied from donna-ai.functions.ts) ────────────────────────
 
@@ -99,32 +100,6 @@ function daysUntilNextOccurrence(month: number, day: number, today: Date): numbe
     if (diff >= 0 && diff <= 7) return diff;
   }
   return null;
-}
-
-async function callGemini(system: string, user: string): Promise<string> {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
-  if (!apiKey) throw new Error("GOOGLE_AI_API_KEY ausente");
-  const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gemini-3.6-flash",
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    },
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 429) throw new Error("Rate limited");
-    throw new Error(`Gemini error (${res.status}): ${text.slice(0, 200)}`);
-  }
-  const json = await res.json();
-  return json.choices?.[0]?.message?.content ?? "";
 }
 
 // ─── Core generation (supabaseAdmin + explicit userId) ────────────────────────
@@ -323,9 +298,12 @@ async function generateForUser(
     }
   }
 
-  // 6. Arquivos do Google Drive
+  // 6. Arquivos do Google Drive + config de IA
   const { readDriveFolder } = await import("@/features/agenda/lib/google-drive-reader");
-  const driveFiles = await readDriveFolder(userId);
+  const [driveFiles, aiConfig] = await Promise.all([
+    readDriveFolder(userId),
+    getCallableAiConfig(userId),
+  ]);
 
   // 7. Montar userMessage
   const dateLabel = today.toLocaleDateString("pt-BR", {
@@ -439,7 +417,7 @@ async function generateForUser(
   }
 
   const userMessage = lines.join("\n");
-  return callGemini(DONNA_SYSTEM_PROMPT, userMessage);
+  return callAI(DONNA_SYSTEM_PROMPT, userMessage, aiConfig);
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
