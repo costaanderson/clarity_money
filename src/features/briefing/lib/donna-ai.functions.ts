@@ -344,7 +344,11 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
       }
     }
 
-    // ── 6. Montar userMessage ──────────────────────────────────────────────
+    // ── 6. Arquivos do Google Drive ────────────────────────────────────────
+    const { readDriveFolder } = await import("@/features/agenda/lib/google-drive-reader");
+    const driveFiles = await readDriveFolder(context.userId);
+
+    // ── 7. Montar userMessage ──────────────────────────────────────────────
     const dateLabel = today.toLocaleDateString("pt-BR", {
       weekday: "long", day: "2-digit", month: "long", year: "numeric",
     });
@@ -442,12 +446,25 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
       }
     }
 
+    lines.push("");
+    lines.push("─── ARQUIVOS DO GOOGLE DRIVE ───");
+    if (driveFiles.length === 0) {
+      lines.push("(nenhuma pasta configurada ou sem arquivos)");
+    } else {
+      for (const f of driveFiles) {
+        const modDate = new Date(f.modifiedTime).toLocaleDateString("pt-BR");
+        lines.push(`[${f.name}] (atualizado em ${modDate})`);
+        lines.push(f.content);
+        lines.push("");
+      }
+    }
+
     const userMessage = lines.join("\n");
 
-    // ── 7. Chamar Gemini ───────────────────────────────────────────────────
+    // ── 8. Chamar Gemini ───────────────────────────────────────────────────
     const content = await callGemini(DONNA_SYSTEM_PROMPT, userMessage);
 
-    // ── 8. Persistir resultado ─────────────────────────────────────────────
+    // ── 9. Persistir resultado ─────────────────────────────────────────────
     await context.supabase
       .from("donna_briefings" as any)
       .insert({ user_id: context.userId, briefing_date: todayStr, content });
