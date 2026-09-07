@@ -2,7 +2,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle, HardDrive } from "lucide-react";
+import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle, HardDrive, FolderOpen, Loader2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listIntakeTokens,
@@ -16,6 +16,7 @@ import {
   getGoogleDriveAuthUrl,
   getGoogleDriveConnectionStatus,
   revokeGoogleDrive,
+  saveDriveFolder,
 } from "@/features/agenda/lib/google-auth.functions";
 import { Badge } from "@/shared/components/ui/badge";
 import { useState, useCallback, useEffect } from "react";
@@ -156,6 +157,8 @@ function GoogleCalendarCard() {
 
 function GoogleDriveCard() {
   const qc = useQueryClient();
+  const [folderUrl, setFolderUrl] = useState("");
+
   const statusQ = useQuery({
     queryKey: ["google-drive-status"],
     queryFn: () => getGoogleDriveConnectionStatus(),
@@ -170,6 +173,16 @@ function GoogleDriveCard() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const saveFolder = useMutation({
+    mutationFn: () => saveDriveFolder({ data: { folderUrl } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["google-drive-status"] });
+      setFolderUrl("");
+      toast.success(`Pasta "${r.folderName}" configurada.`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   async function handleConnect() {
     try {
       const redirectUri = `${window.location.origin}/api/google/callback`;
@@ -180,7 +193,7 @@ function GoogleDriveCard() {
     }
   }
 
-  const { connected, email } = statusQ.data ?? { connected: false, email: null };
+  const status = statusQ.data ?? { connected: false, email: null, folderId: null, folderName: null };
 
   return (
     <Card>
@@ -189,7 +202,7 @@ function GoogleDriveCard() {
           <HardDrive className="h-4 w-4" /> Google Drive
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm">
+      <CardContent className="space-y-4 text-sm">
         <p className="text-muted-foreground">
           Conecte o Google Drive para permitir que a Donna leia arquivos e transcrições
           armazenados na sua conta Google (acesso somente leitura).
@@ -197,22 +210,71 @@ function GoogleDriveCard() {
 
         {statusQ.isLoading ? (
           <div className="h-8 w-40 rounded bg-muted animate-pulse" />
-        ) : connected ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge variant="outline" className="gap-1.5 border-emerald-400 text-emerald-700">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Conectado{email ? `: ${email}` : ""}
-            </Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => revoke.mutate()}
-              disabled={revoke.isPending}
-              className="text-destructive border-destructive/40 hover:bg-destructive/10"
-            >
-              <XCircle className="h-3.5 w-3.5 mr-1" />
-              Desconectar
-            </Button>
+        ) : status.connected ? (
+          <div className="space-y-4">
+            {/* Status da conta */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge variant="outline" className="gap-1.5 border-emerald-400 text-emerald-700">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Conectado{status.email ? `: ${status.email}` : ""}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => revoke.mutate()}
+                disabled={revoke.isPending}
+                className="text-destructive border-destructive/40 hover:bg-destructive/10"
+              >
+                <XCircle className="h-3.5 w-3.5 mr-1" />
+                Desconectar
+              </Button>
+            </div>
+
+            {/* Pasta configurada */}
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+              <p className="font-medium flex items-center gap-2 text-sm">
+                <FolderOpen className="h-4 w-4 text-amber-500" />
+                Pasta monitorada pela Donna
+              </p>
+              {status.folderName ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className="gap-1.5 text-xs">
+                    <FolderOpen className="h-3 w-3" />
+                    {status.folderName}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">— trocar pasta abaixo</span>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma pasta configurada. A Donna ainda não está lendo do Drive.
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <Input
+                  className="h-8 text-xs flex-1"
+                  placeholder="Cole o link da pasta do Google Drive…"
+                  value={folderUrl}
+                  onChange={(e) => setFolderUrl(e.target.value)}
+                />
+                <Button
+                  size="sm"
+                  className="h-8 shrink-0"
+                  disabled={!folderUrl.trim() || saveFolder.isPending}
+                  onClick={() => saveFolder.mutate()}
+                >
+                  {saveFolder.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    "Salvar"
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Cole o link da pasta (ex: drive.google.com/drive/folders/…) e clique em Salvar.
+                A Donna vai ler os arquivos dessa pasta ao gerar briefings.
+              </p>
+            </div>
           </div>
         ) : (
           <Button variant="outline" onClick={handleConnect}>

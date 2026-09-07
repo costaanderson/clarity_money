@@ -101,11 +101,55 @@ export const getGoogleDriveConnectionStatus = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await (supabaseAdmin as any)
       .from("google_drive_tokens")
-      .select("google_email")
+      .select("google_email, folder_id, folder_name")
       .eq("user_id", context.userId)
       .maybeSingle();
 
-    return { connected: !!data, email: (data as any)?.google_email ?? null };
+    return {
+      connected: !!data,
+      email: (data as any)?.google_email ?? null,
+      folderId: (data as any)?.folder_id ?? null,
+      folderName: (data as any)?.folder_name ?? null,
+    };
+  });
+
+export const saveDriveFolder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ folderUrl: z.string().min(1) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    // Extrai o ID da pasta de uma URL do Drive ou aceita um ID bruto
+    const match = data.folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    const folderId = match ? match[1] : data.folderUrl.trim();
+
+    // Valida via Drive API e obtém o nome da pasta
+    const { getValidGoogleDriveToken } = await import("@/features/agenda/lib/google-auth.functions");
+    const token = await getValidGoogleDriveToken(context.userId);
+    if (!token) throw new Error("Google Drive não está conectado.");
+
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+
+    if (!res.ok) {
+      if (res.status === 404) throw new Error("Pasta não encontrada. Verifique se a URL está correta e se você tem acesso.");
+      throw new Error("Não foi possível acessar a pasta no Google Drive.");
+    }
+
+    const file = await res.json();
+    if (file.mimeType !== "application/vnd.google-apps.folder") {
+      throw new Error("O link informado não é uma pasta do Google Drive.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any)
+      .from("google_drive_tokens")
+      .update({ folder_id: file.id, folder_name: file.name })
+      .eq("user_id", context.userId);
+
+    return { folderId: file.id, folderName: file.name as string };
   });
 
 export const revokeGoogleDrive = createServerFn({ method: "POST" })
