@@ -86,7 +86,7 @@
       <div class="meta-item"><label>Repositório</label><span>costaanderson/clarity_money</span></div>
       <div class="meta-item"><label>Tipo</label><span>Single Repo (Monolito Modular)</span></div>
       <div class="meta-item"><label>Ambiente</label><span>Produção — Vercel</span></div>
-      <div class="meta-item"><label>Versão do doc</label><span>Setembro 2026</span></div>
+      <div class="meta-item"><label>Versão do doc</label><span>Setembro 2026 — rev 2</span></div>
     </div>
   </div>
 
@@ -171,7 +171,10 @@
           <tr><td><span class="pill green">Supabase</span></td><td>Postgres, Auth JWT, RLS, Storage</td></tr>
           <tr><td><span class="pill yellow">Vercel</span></td><td>Hosting, Serverless Functions, Cron</td></tr>
           <tr><td><span class="pill yellow">Google Calendar API v3</span></td><td>Sync de eventos via OAuth2</td></tr>
-          <tr><td><span class="pill yellow">Google Gemini AI</span></td><td>LLM — briefings e análises (gemini-3.6-flash)</td></tr>
+          <tr><td><span class="pill yellow">Google Drive API v3</span></td><td>Leitura de arquivos da pasta monitorada pela Donna</td></tr>
+          <tr><td><span class="pill yellow">Google Gemini AI</span></td><td>LLM padrão — gemini-3.6-flash (configurável por usuário)</td></tr>
+          <tr><td><span class="pill yellow">Anthropic Claude API</span></td><td>LLM alternativo — claude-sonnet-4-6 (configurável por usuário)</td></tr>
+          <tr><td><span class="pill yellow">OpenAI API</span></td><td>LLM alternativo — gpt-4o (configurável por usuário)</td></tr>
           <tr><td><span class="pill red">pdf-parse</span></td><td>Extração de texto de PDFs (server-only)</td></tr>
           <tr><td><span class="pill gray">TypeScript 5.x (strict)</span></td><td>Linguagem principal</td></tr>
           <tr><td><span class="pill gray">Vite 8</span></td><td>Bundler</td></tr>
@@ -194,9 +197,21 @@
 ├── <span class="dir">src/</span><br>
 │   ├── <span class="dir">features/</span>               <span class="note">← domínios de negócio (feature modules)</span><br>
 │   │   ├── <span class="dir">activation-rules/</span>   <span class="note">← regras de reativação de clientes</span><br>
-│   │   ├── <span class="dir">agenda/</span>             <span class="note">← calendar events + Google Calendar OAuth</span><br>
-│   │   ├── <span class="dir">ai/</span>                 <span class="note">← geração de conteúdo IA por cliente (Gemini)</span><br>
+│   │   ├── <span class="dir">agenda/</span>             <span class="note">← calendar events + Google Calendar/Drive OAuth</span><br>
+│   │   │   └── <span class="dir">lib/</span><br>
+│   │   │       ├── <span class="file">google-auth.functions.ts</span>   <span class="note">← OAuth Calendar + Drive, saveDriveFolder, getValidToken</span><br>
+│   │   │       ├── <span class="file">google-calendar.functions.ts</span> <span class="note">← fetchGoogleEvents</span><br>
+│   │   │       └── <span class="file">google-drive-reader.ts</span>     <span class="note">← readDriveFolder() — lê até 15 arquivos da pasta monitorada</span><br>
+│   │   ├── <span class="dir">ai/</span>                 <span class="note">← geração de conteúdo IA por cliente (multi-provider)</span><br>
+│   │   │   └── <span class="dir">lib/</span><br>
+│   │   │       ├── <span class="file">call-ai.ts</span>          <span class="note">← abstração callAI() + getCallableAiConfig() (Gemini/Claude/OpenAI)</span><br>
+│   │   │       ├── <span class="file">ai-config.functions.ts</span> <span class="note">← server fns: salvar/buscar/limpar config de IA do usuário</span><br>
+│   │   │       ├── <span class="file">ai.functions.ts</span>     <span class="note">← generateAI, listAIGenerations (IA Bússola)</span><br>
+│   │   │       └── <span class="file">extract-text.ts</span>     <span class="note">← extração de texto de PDFs/TXT/MD</span><br>
 │   │   ├── <span class="dir">briefing/</span>           <span class="note">← Donna: briefing diário + radar de engajamento</span><br>
+│   │   │   └── <span class="dir">lib/</span><br>
+│   │   │       ├── <span class="file">donna-ai.functions.ts</span>   <span class="note">← generateDonnaBriefing, getTodayDonnaBriefing</span><br>
+│   │   │       └── <span class="file">donna-system-prompt.ts</span>  <span class="note">← DONNA_SYSTEM_PROMPT (fonte única, importado pelo cron)</span><br>
 │   │   ├── <span class="dir">clients/</span>            <span class="note">← CRM completo (CRUD, detalhes, notas, docs)</span><br>
 │   │   ├── <span class="dir">cockpit/</span>            <span class="note">← KPIs e métricas financeiras da carteira</span><br>
 │   │   ├── <span class="dir">diagnostic/</span>         <span class="note">← diagnóstico financeiro público (landing)</span><br>
@@ -308,17 +323,18 @@ Preset: nitro vercel  |  Runtime: nodejs24.x  |  Entry: src/server.ts (SSR wrapp
       <span class="section-num">06 / 14</span>
     </div>
     <div class="callout success"><strong>RLS habilitada em todas as tabelas.</strong> Queries de usuário sempre passam pelo cliente autenticado com JWT — isolamento por <code>auth.uid() = user_id</code> garantido em nível de banco.</div>
-    <h3>Tabelas (14 ao total)</h3>
+    <h3>Tabelas (16 ao total)</h3>
     <table>
       <tr><th>Tabela</th><th>Propósito e campos relevantes</th><th>Relações</th></tr>
-      <tr><td><code>profiles</code></td><td>Perfil do usuário: name, email, google_calendar_connected</td><td>→ auth.users (1:1)</td></tr>
+      <tr><td><code>profiles</code></td><td>Perfil do usuário: name, email, google_calendar_connected. <strong>ai_provider</strong> (gemini/claude/openai), <strong>ai_api_key</strong> (chave pessoal do usuário), <strong>ai_model</strong> (modelo escolhido)</td><td>→ auth.users (1:1)</td></tr>
       <tr><td><code>clients</code></td><td>CRM: name, type (PF/PJ), status, email, phone, birthday (date), important_dates (JSONB), last_contact_at, source, UTMs</td><td>→ categories, → user</td></tr>
       <tr><td><code>categories</code></td><td>Categorias de clientes (nome + cor)</td><td>→ user</td></tr>
       <tr><td><code>notes</code></td><td>Notas por cliente. Kinds: <em>nota</em> (sessão), <em>contexto</em> (comportamental), <em>documento</em></td><td>→ clients</td></tr>
       <tr><td><code>documents</code></td><td>Documentos anexados (PDF). Campo extracted_text para indexação e consumo pela IA</td><td>→ clients</td></tr>
       <tr><td><code>tasks</code></td><td>Tarefas: title, description, due_at, status (pendente/feito/cancelado), source (manual/regra_ativacao)</td><td>→ clients, → user</td></tr>
       <tr><td><code>calendar_events</code></td><td>Compromissos: title, start_at, end_at, meet_link, google_event_id (sync bidirecional)</td><td>→ clients, → user</td></tr>
-      <tr><td><code>google_calendar_tokens</code></td><td>Tokens OAuth2 Google Calendar: access_token, refresh_token, expires_at</td><td>→ user (1:1)</td></tr>
+      <tr><td><code>google_calendar_tokens</code></td><td>Tokens OAuth2 Google Calendar: access_token, refresh_token, expires_at, google_email</td><td>→ user (1:1)</td></tr>
+      <tr><td><code>google_drive_tokens</code></td><td>Tokens OAuth2 Google Drive: access_token, refresh_token, expires_at, google_email, <strong>folder_id</strong>, <strong>folder_name</strong> (pasta monitorada pela Donna)</td><td>→ user (1:1)</td></tr>
       <tr><td><code>activation_rules</code></td><td>Regras configuráveis: name, applies_to_status, trigger_days_no_contact, action (task/email/ambos), active</td><td>→ user</td></tr>
       <tr><td><code>ai_generations</code></td><td>Histórico de gerações IA por cliente: kind (resumo/mensagem/analise/briefing), prompt, output</td><td>→ clients, → user</td></tr>
       <tr><td><code>donna_briefings</code></td><td>Briefings diários gerados pela Donna IA. Indexado por (user_id, briefing_date DESC)</td><td>→ user</td></tr>
@@ -336,6 +352,9 @@ Preset: nitro vercel  |  Runtime: nodejs24.x  |  Entry: src/server.ts (SSR wrapp
       <tr><td><code>20260816_add_pipeline_finalized</code></td><td>Flag de finalização no pipeline</td></tr>
       <tr><td><code>20260905_add_client_dates</code></td><td>Campos <code>birthday</code> (date) e <code>important_dates</code> (JSONB) em clients</td></tr>
       <tr><td><code>20260906_add_donna_briefings</code></td><td>Tabela donna_briefings + RLS + índice composto user_id+briefing_date</td></tr>
+      <tr><td><code>20260907000001_add_google_drive_tokens</code></td><td>Tabela google_drive_tokens + RLS (access_token, refresh_token, expires_at, google_email)</td></tr>
+      <tr><td><code>20260907000002_add_drive_folder</code></td><td>Colunas folder_id + folder_name em google_drive_tokens</td></tr>
+      <tr><td><code>20260907000003_add_ai_config_to_profiles</code></td><td>Colunas ai_provider, ai_api_key, ai_model em profiles (config de IA por usuário)</td></tr>
     </table>
     <div class="callout warn">Migrations <strong>não são aplicadas automaticamente</strong> no deploy. Devem ser executadas manualmente via Supabase Dashboard (SQL Editor) ou Supabase CLI autenticado.</div>
   </div>
@@ -430,14 +449,14 @@ Preset: nitro vercel  |  Runtime: nodejs24.x  |  Entry: src/server.ts (SSR wrapp
       <tr>
         <td><code>/api/google/callback</code></td>
         <td>GET</td>
-        <td>OAuth2 state param</td>
-        <td>Callback OAuth2 Google Calendar. Troca authorization code por tokens e persiste em google_calendar_tokens. Redireciona para /configuracoes.</td>
+        <td>OAuth2 state param (<code>userId|service</code>)</td>
+        <td>Callback OAuth2 unificado para Google Calendar e Google Drive. O state param codifica <code>userId|calendar</code> ou <code>userId|drive</code> para discriminar o serviço. Persiste em <code>google_calendar_tokens</code> ou <code>google_drive_tokens</code>. Redireciona para /configuracoes?connected={service}.</td>
       </tr>
       <tr>
         <td><code>/api/cron/donna-briefing</code></td>
         <td>GET</td>
         <td><code>CRON_SECRET</code> Bearer</td>
-        <td>Chamado pelo Vercel Cron às 10h UTC (7h BRT). Itera todos os usuários em profiles, pula quem já tem briefing do dia, gera via Gemini e persiste em donna_briefings. Retorna {processed, skipped, errors}.</td>
+        <td>Chamado pelo Vercel Cron às 10h UTC (7h BRT). Itera todos os usuários em profiles, pula quem já tem briefing do dia. Para cada usuário: busca config de IA (provider/key do próprio usuário ou fallback para env), lê arquivos do Drive (se configurado), inclui novos leads das últimas 24h, gera via callAI() e persiste em donna_briefings. Retorna {processed, skipped, errors}.</td>
       </tr>
     </table>
   </div>
@@ -454,13 +473,13 @@ Preset: nitro vercel  |  Runtime: nodejs24.x  |  Entry: src/server.ts (SSR wrapp
       <tr><td><strong>clients</strong></td><td>CRM completo — lista, filtros (status/categoria/busca), criação, edição, detalhe com notas, documentos, tarefas, gerações IA e datas especiais.</td><td>listClients, createClient, updateClient, deleteClient</td></tr>
       <tr><td><strong>tasks</strong></td><td>Gestão de tarefas com filtros combinados (status + range de data: hoje/semana/atrasadas/todas). Suporte a tarefas manuais e geradas por regras (source=regra_ativacao). Edição via sheet lateral.</td><td>listTasks, createTask, updateTask, setTaskStatus, deleteTask</td></tr>
       <tr><td><strong>agenda</strong></td><td>Compromissos locais agrupados por dia com sync Google Calendar. Eventos Google exibidos com badge diferenciado. Auto-refresh de token OAuth2.</td><td>listEvents, createEvent, deleteEvent, getGoogleConnectionStatus, getValidGoogleToken, fetchGoogleEvents</td></tr>
-      <tr><td><strong>briefing</strong></td><td>Donna IA — briefing diário gerado pelo Gemini (system prompt completo em 3 seções: Engajamento, Briefing, Energia). Radar de engajamento por regra. Alertas de aniversários e datas importantes (próximos 7 dias). Bloco de clientes sem reunião há 14+ dias.</td><td>getDailyBriefing, getEngagementRadar, getDateAlerts, getTodayDonnaBriefing, generateDonnaBriefing</td></tr>
+      <tr><td><strong>briefing</strong></td><td>Donna IA — briefing diário em 4 seções: A) Engajamento (datas especiais + radar de ativação), B) Briefing das reuniões do dia, C) Energia e carga, D) Novos leads (últimas 24h com diagnóstico e abordagem sugerida). Lê arquivos do Google Drive configurado. System prompt centralizado em <code>donna-system-prompt.ts</code>.</td><td>getTodayDonnaBriefing, generateDonnaBriefing</td></tr>
       <tr><td><strong>activation-rules</strong></td><td>Regras configuráveis inline na Donna: status do cliente + dias sem contato → ação. CRUD completo + execução manual (run all rules → cria tasks).</td><td>listRules, createRule, updateRule, deleteRule, runActivationRules</td></tr>
-      <tr><td><strong>ai</strong></td><td>Geração de conteúdo IA por cliente usando notas + documentos como contexto: resumo executivo, mensagem de reativação (2 variações WhatsApp/email), análise comportamental, briefing de reunião. Histórico salvo em ai_generations.</td><td>generateAI, listAIGenerations</td></tr>
+      <tr><td><strong>ai</strong></td><td>Geração de conteúdo IA por cliente (IA Bússola) usando notas + documentos como contexto: resumo executivo, mensagem de reativação, análise comportamental, briefing de reunião. Abstração <code>callAI()</code> suporta Gemini, Claude e OpenAI. Config de IA do usuário gerenciada por <code>ai-config.functions.ts</code>. Histórico salvo em ai_generations.</td><td>generateAI, listAIGenerations, getUserAiConfigStatus, saveUserAiConfig, clearUserAiConfig</td></tr>
       <tr><td><strong>cockpit</strong></td><td>Dashboard de KPIs financeiros com períodos relativos: MRR, ticket médio, churn rate, receita acumulada, evolução de carteira (Recharts).</td><td>getCockpitData</td></tr>
       <tr><td><strong>pipeline</strong></td><td>Kanban de funil de clientes com estágios configuráveis, drag-and-drop e histórico de movimentações em client_stage_history.</td><td>getPipelineData, moveClientStage</td></tr>
       <tr><td><strong>week-panel</strong></td><td>Painel da semana — reuniões do dia, tarefas urgentes, notas rápidas, resumo semanal. Dashboard principal da aplicação.</td><td>getWeekPanelData</td></tr>
-      <tr><td><strong>settings</strong></td><td>Configurações do usuário: OAuth Google Calendar (connect/revoke), geração/revogação de lead intake token, preferências gerais.</td><td>getSettings, updateSettings, generateLeadToken, revokeGoogleCalendar</td></tr>
+      <tr><td><strong>settings</strong></td><td>Configurações do usuário: OAuth Google Calendar (connect/revoke), OAuth Google Drive (connect/revoke/pasta), configuração de IA (provider + API key + modelo), geração/revogação de lead intake token.</td><td>getGoogleConnectionStatus, revokeGoogleCalendar, getGoogleDriveConnectionStatus, revokeGoogleDrive, saveDriveFolder, getUserAiConfigStatus, saveUserAiConfig, clearUserAiConfig</td></tr>
       <tr><td><strong>diagnostic</strong></td><td>Formulário de diagnóstico financeiro público (landing). Resultado persistido via API route pública e opcionalmente convertido em lead/cliente.</td><td>(via API route pública)</td></tr>
     </table>
   </div>
@@ -478,26 +497,35 @@ Preset: nitro vercel  |  Runtime: nodejs24.x  |  Entry: src/server.ts (SSR wrapp
         <table>
           <tr><th>Item</th><th>Detalhe</th></tr>
           <tr><td>Protocolo</td><td>OAuth2 Authorization Code Flow</td></tr>
-          <tr><td>Scopes</td><td>calendar.readonly</td></tr>
-          <tr><td>Callback</td><td><code>/api/google/callback</code></td></tr>
-          <tr><td>Armazenamento</td><td>google_calendar_tokens (access + refresh + expires_at)</td></tr>
+          <tr><td>Scopes</td><td>calendar, userinfo.email</td></tr>
+          <tr><td>Callback</td><td><code>/api/google/callback</code> (state: <code>userId|calendar</code>)</td></tr>
+          <tr><td>Armazenamento</td><td>google_calendar_tokens (access + refresh + expires_at + google_email)</td></tr>
           <tr><td>Auto-refresh</td><td>getValidGoogleToken() renova automaticamente via refresh_token</td></tr>
           <tr><td>Env vars</td><td>GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET</td></tr>
         </table>
       </div>
       <div>
-        <h3>Google Gemini AI</h3>
+        <h3>Google Drive</h3>
         <table>
           <tr><th>Item</th><th>Detalhe</th></tr>
-          <tr><td>Endpoint</td><td>API OpenAI-compatible</td></tr>
-          <tr><td>URL base</td><td>generativelanguage.googleapis.com/v1beta/openai/</td></tr>
-          <tr><td>Modelo ativo</td><td>gemini-3.6-flash</td></tr>
-          <tr><td>Histórico</td><td>2.5-flash (depreciado) → 2.0-flash (depreciado) → 3.6-flash</td></tr>
-          <tr><td>Env var</td><td>GOOGLE_AI_API_KEY</td></tr>
-          <tr><td>Usos</td><td>Briefing Donna (diário/manual), resumo, análise comportamental, mensagem de reativação, briefing de reunião</td></tr>
+          <tr><td>Protocolo</td><td>OAuth2 Authorization Code Flow</td></tr>
+          <tr><td>Scopes</td><td>drive.readonly, userinfo.email</td></tr>
+          <tr><td>Callback</td><td><code>/api/google/callback</code> (state: <code>userId|drive</code>)</td></tr>
+          <tr><td>Armazenamento</td><td>google_drive_tokens (access + refresh + expires_at + google_email + folder_id + folder_name)</td></tr>
+          <tr><td>Auto-refresh</td><td>getValidGoogleDriveToken() — mesma lógica do Calendar</td></tr>
+          <tr><td>Leitura</td><td>readDriveFolder() — Google Docs (export text/plain), PDF + txt/md (download + extractText). Máx 15 arquivos, 3k chars/arquivo, 18k chars total</td></tr>
         </table>
       </div>
     </div>
+    <h3>IA — Abstração Multi-Provider</h3>
+    <div class="callout success"><strong>callAI(system, user, config?)</strong> em <code>src/features/ai/lib/call-ai.ts</code> — roteia para o provider configurado pelo usuário. Fallback automático para <code>GOOGLE_AI_API_KEY</code> do ambiente com gemini-3.6-flash.</div>
+    <table>
+      <tr><th>Provider</th><th>Endpoint</th><th>Modelo padrão</th><th>Formato</th></tr>
+      <tr><td><span class="pill yellow">Gemini</span></td><td>generativelanguage.googleapis.com/v1beta/openai/</td><td>gemini-3.6-flash</td><td>OpenAI-compatible</td></tr>
+      <tr><td><span class="pill purple">Claude</span></td><td>api.anthropic.com/v1/messages</td><td>claude-sonnet-4-6</td><td>Anthropic Messages API</td></tr>
+      <tr><td><span class="pill green">OpenAI</span></td><td>api.openai.com/v1/chat/completions</td><td>gpt-4o</td><td>OpenAI Chat Completions</td></tr>
+    </table>
+    <p>Cada usuário configura <strong>provider + API key + modelo</strong> nas Configurações. A chave é salva em <code>profiles.ai_api_key</code> (protegida por RLS) e <strong>nunca retorna ao cliente</strong> — apenas <code>hasKey: boolean</code> é exposto. Donna e IA Bússola buscam a config via <code>getCallableAiConfig(userId)</code> antes de cada geração.</p>
     <h3>Variáveis de Ambiente — Produção Vercel</h3>
     <table>
       <tr><th>Variável</th><th>Tipo</th><th>Uso</th></tr>
@@ -507,10 +535,10 @@ Preset: nitro vercel  |  Runtime: nodejs24.x  |  Entry: src/server.ts (SSR wrapp
       <tr><td><code>VITE_SUPABASE_URL</code></td><td>Secret</td><td>Exposto ao bundle cliente (SSR hydration)</td></tr>
       <tr><td><code>VITE_SUPABASE_PUBLISHABLE_KEY</code></td><td>Secret</td><td>Exposto ao bundle cliente</td></tr>
       <tr><td><code>VITE_SUPABASE_PROJECT_ID</code></td><td>Secret</td><td>ID do projeto Supabase (cliente)</td></tr>
-      <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>Secret</td><td>OAuth2 Google Calendar</td></tr>
-      <tr><td><code>GOOGLE_CLIENT_SECRET</code></td><td>Secret</td><td>OAuth2 Google Calendar</td></tr>
-      <tr><td><code>GOOGLE_AI_API_KEY</code></td><td>Secret</td><td>Gemini AI (geração de briefings e análises)</td></tr>
-      <tr><td><code>OPEN_AI_KEY</code></td><td>Secret</td><td>Reservado — não usado ativamente</td></tr>
+      <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>Secret</td><td>OAuth2 Google Calendar <strong>e</strong> Google Drive (mesmo app OAuth)</td></tr>
+      <tr><td><code>GOOGLE_CLIENT_SECRET</code></td><td>Secret</td><td>OAuth2 Google Calendar e Google Drive</td></tr>
+      <tr><td><code>GOOGLE_AI_API_KEY</code></td><td>Secret</td><td>Gemini AI — chave padrão do app (fallback quando usuário não configurou a própria)</td></tr>
+      <tr><td><code>OPEN_AI_KEY</code></td><td>Secret</td><td>Reservado — não usado ativamente (usuários configuram a própria key nas Configurações)</td></tr>
       <tr><td><code>CRON_SECRET</code></td><td>Secret</td><td>Valida chamadas do Vercel Cron no endpoint /api/cron/donna-briefing</td></tr>
     </table>
   </div>
@@ -615,8 +643,8 @@ git push → GitHub (branch: main)<br>
     <table>
       <tr><th>Ponto</th><th>Situação atual</th><th>Recomendação</th></tr>
       <tr><td>Migrations manuais</td><td>Aplicadas via SQL Editor no Supabase Dashboard</td><td>Integrar Supabase CLI no CI/CD ou usar Supabase branching para ambientes</td></tr>
-      <tr><td>Supabase types desatualizados</td><td><code>donna_briefings</code> usa cast <code>as any</code> por não estar no types.ts gerado automaticamente</td><td>Executar <code>supabase gen types typescript</code> após cada migration e commitar o arquivo gerado</td></tr>
-      <tr><td>System prompt duplicado</td><td>DONNA_SYSTEM_PROMPT replicado em donna-ai.functions.ts e no cron endpoint</td><td>Extrair para módulo <code>donna-prompt.server.ts</code> compartilhado</td></tr>
+      <tr><td>Supabase types desatualizados</td><td><code>donna_briefings</code>, <code>google_drive_tokens</code> e novos campos de <code>profiles</code> usam cast <code>as any</code> por não estarem no types.ts gerado automaticamente</td><td>Executar <code>supabase gen types typescript</code> após cada migration e commitar o arquivo gerado</td></tr>
+      <tr><td>API key de IA em texto plano</td><td><code>profiles.ai_api_key</code> armazenada sem criptografia — protegida apenas por RLS</td><td>Avaliar criptografia em nível de aplicação (AES-256) ou uso de Supabase Vault para chaves sensíveis</td></tr>
       <tr><td>Sem testes automatizados</td><td>Nenhum teste no projeto</td><td>Iniciar com Vitest para server functions críticas (geração IA, regras de ativação)</td></tr>
       <tr><td>Sem retry na API Gemini</td><td>Erros 429 tratados com mensagem mas sem retry</td><td>Implementar retry com backoff exponencial (max 3 tentativas)</td></tr>
       <tr><td>Cron em Hobby plan</td><td>Vercel Hobby limita crons a 1/dia e horários pré-definidos</td><td>Avaliar upgrade para Pro se precisar de frequência maior</td></tr>
@@ -624,7 +652,7 @@ git push → GitHub (branch: main)<br>
     </table>
     <h3>Dependências críticas de negócio</h3>
     <div class="callout warn">
-      <strong>Google Gemini API:</strong> Toda a inteligência da Donna depende do modelo <code>gemini-3.6-flash</code>. O modelo foi depreciado 2 vezes durante o desenvolvimento (2.5-flash → 2.0-flash → 3.6-flash). Monitorar changelog da API Google e manter atualizações prioritárias.
+      <strong>Dependência de IA:</strong> A abstração <code>callAI()</code> suporta Gemini, Claude e OpenAI. O modelo padrão do app é <code>gemini-3.6-flash</code> — foi depreciado 2 vezes (2.5 → 2.0 → 3.6). Monitorar changelogs de todos os providers. Se usuário não configurar chave própria, toda a geração cai no <code>GOOGLE_AI_API_KEY</code> do app.
     </div>
     <div class="callout">
       <strong>Supabase:</strong> Banco, autenticação e storage 100% centralizados no Supabase. Sem fallback. SLA depende do plano contratado (Free/Pro). Avaliar Pro para ambientes de produção com SLA garantido.
@@ -635,7 +663,7 @@ git push → GitHub (branch: main)<br>
   </div>
 
   <footer>
-    Documento gerado em Setembro de 2026 &nbsp;·&nbsp; Clarity Money &nbsp;·&nbsp; Para uso interno — repasse a engenheiro e arquiteto de software
+    Documento gerado em Setembro de 2026 — rev 2 &nbsp;·&nbsp; Clarity Money &nbsp;·&nbsp; Para uso interno — repasse a engenheiro e arquiteto de software
   </footer>
 
 </div>
