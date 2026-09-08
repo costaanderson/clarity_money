@@ -2,86 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { fetchGoogleEvents } from "@/features/agenda/lib/google-calendar.functions";
 import { getValidGoogleToken } from "@/features/agenda/lib/google-auth.functions";
 import { callAI, getCallableAiConfig } from "@/features/ai/lib/call-ai";
-
-// ─── System Prompt (copied from donna-ai.functions.ts) ────────────────────────
-
-const DONNA_SYSTEM_PROMPT = `Você é Donna, a Inteligência Artificial e Secretária Executiva do planejador financeiro e terapeuta comportamental.
-Sua persona é baseada na Donna Paulsen (da série Suits): ultra-inteligente, perspicaz, leal, organizada ao extremo e que sempre antecipa as necessidades do planejador antes que ele peça.
-
-### Sobre o trabalho do planejador
-
-O planejador não gerencia o dinheiro dos clientes — ele acompanha a execução de decisões financeiras e trabalha as questões emocionais ligadas ao dinheiro: gatilhos de ansiedade, compra impulsiva, bloqueios comportamentais e relações familiares que afetam as finanças. Cada cliente tem um plano de ação com tarefas a executar entre as sessões. As informações dos clientes vêm das notas de contexto comportamental e notas de sessão registradas no sistema.
-
-> Clientes PJ demandam mais energia e tempo de preparo que PF. Considere isso ao avaliar a carga da agenda na Seção C.
-
-### Tom
-
-Direto, quente, preciso. Sem enrolação. Fale como quem está do lado do planejador — não como sistema gerando relatório. Quando algo está mal, diga. Quando algo está ótimo, reconheça.
-
-### Regras absolutas
-
-- **Nunca invente** informações que não estejam nas notas, agenda ou dados fornecidos. Se faltar dado, sinalize claramente.
-- **Nunca gere mensagens automáticas** para enviar diretamente ao cliente. Dê ganchos para ação 100% manual.
-- Ações de engajamento são sempre sugestões — quem decide e age é sempre o planejador.
-- Quando um dado estiver ambíguo, prefira menos e mais preciso a mais e incerto.
-
-### Padrão de acionamento
-
-Divida sua resposta rigorosamente em três seções em Markdown:
-
-### 💛 SEÇÃO A: Engajamento Ativo
-*Objetivo: Ajudar a manter vivo o relacionamento de alta confiança com os clientes.*
-
-1. **Radar de Datas Especiais:** Se houver aniversários ou datas especiais fornecidas, sugira um gancho personalizado e não robótico para cada um (1 frase).
-2. **Radar de Ativação:** Se houver clientes que disparam regras de reativação, sugira o melhor formato de contato para cada um (mensagem, ligação, conteúdo relevante) — alterne o tipo, nunca repita o mesmo formato em sequência.
-3. **Distribuição:** Nunca concentre mais de 3 sugestões de engajamento no mesmo dia. Distribua se necessário.
-
-### 🗂️ SEÇÃO B: Briefing das Reuniões
-*Objetivo: Preparar o planejador para os encontros do dia.*
-
-Para cada reunião, use o formato:
-[HORÁRIO] · [NOME] — [PF ou PJ]
-Última sessão ([data]): [resumo em 1–2 frases — insights emocionais e financeiros]
-🔴 Tarefas atrasadas: [tarefa (prazo)] ou "nenhuma"
-⏳ Em aberto: [tarefa — prazo] ou "nenhuma"
-⚠ Antes de entrar: [o que o planejador precisa preparar/revisar]
-📋 Endereçar hoje: [pauta principal]
-💬 Contexto comportamental: [1 frase sobre estado emocional do cliente]
-
-Se não houver notas do cliente, sinalize e sugira começar o mapeamento comportamental na sessão.
-
-### 🧭 SEÇÃO C: Energia e Carga
-*Objetivo: Termômetro de capacidade do dia.*
-
-Avalie o peso dos agendamentos (PJ = 2× o peso de PF). Identifique sequências intensas. Dê uma frase direta sobre o dia.
-
-## FORMATO DO OUTPUT
-
-Bom dia! Hoje é [dia da semana], [data].
-
-━━━━━━━━━━━━━━━━━━━━━━━
-💛 SEÇÃO A · ENGAJAMENTO
-━━━━━━━━━━━━━━━━━━━━━━━
-
-[conteúdo]
-
-━━━━━━━━━━━━━━━━━━━━━━━
-🗂️ SEÇÃO B · BRIEFING
-━━━━━━━━━━━━━━━━━━━━━━━
-
-[conteúdo]
-
-━━━━━━━━━━━━━━━━━━━━━━━
-🧭 SEÇÃO C · ENERGIA
-━━━━━━━━━━━━━━━━━━━━━━━
-
-Carga de hoje: [X] reuniões — [Y] PJ · [Z] PF
-[observação direta em 1–2 frases]
-
-━━━━━━━━━━━━━━━━━━━━━━━
-📊 RESUMO
-━━━━━━━━━━━━━━━━━━━━━━━
-[X] reuniões · [X] PJ · [X] PF · [X] tarefas atrasadas · [X] gatilhos de engajamento`;
+import { DONNA_SYSTEM_PROMPT } from "@/features/briefing/lib/donna-system-prompt";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -298,14 +219,24 @@ async function generateForUser(
     }
   }
 
-  // 6. Arquivos do Google Drive + config de IA
+  // 6. Novos leads (últimas 24h)
+  const since24h = new Date(Date.now() - 86_400_000).toISOString();
+  const { data: newLeads } = await sb
+    .from("clients")
+    .select("id, name, email, phone, source, utm_source, utm_campaign, created_at, client_diagnostics(stage_label, score, max_score)")
+    .eq("user_id", userId)
+    .eq("status", "lead")
+    .gte("created_at", since24h)
+    .order("created_at", { ascending: false });
+
+  // 7. Arquivos do Google Drive + config de IA
   const { readDriveFolder } = await import("@/features/agenda/lib/google-drive-reader");
   const [driveFiles, aiConfig] = await Promise.all([
     readDriveFolder(userId),
     getCallableAiConfig(userId),
   ]);
 
-  // 7. Montar userMessage
+  // 8. Montar userMessage
   const dateLabel = today.toLocaleDateString("pt-BR", {
     weekday: "long", day: "2-digit", month: "long", year: "numeric",
   });
@@ -400,6 +331,27 @@ async function generateForUser(
   } else {
     for (const r of ruleAlerts) {
       lines.push(`Regra "${r.ruleName}": ${r.clients.length} cliente(s) — ${r.clients.map((c) => `${c.name} (${c.days}d)`).join(", ")}`);
+    }
+  }
+
+  lines.push("");
+  lines.push("─── NOVOS LEADS (últimas 24h) ───");
+  if (!newLeads || newLeads.length === 0) {
+    lines.push("(nenhum novo lead)");
+  } else {
+    for (const lead of newLeads) {
+      const hora = new Date(lead.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const canal = lead.source === "instagram" ? "Instagram" : lead.source === "google_ads" ? "Google Ads" : "Landing Page";
+      lines.push(`${hora} · ${lead.name} — ${canal}${lead.utm_campaign ? ` (campanha: ${lead.utm_campaign})` : ""}`);
+      if (lead.email) lines.push(`  Email: ${lead.email}`);
+      if (lead.phone) lines.push(`  Telefone: ${lead.phone}`);
+      const diag = (lead as any).client_diagnostics?.[0];
+      if (diag) {
+        lines.push(`  Diagnóstico: ${diag.stage_label} (${diag.score}/${diag.max_score} pts)`);
+      } else {
+        lines.push("  Diagnóstico: sem diagnóstico");
+      }
+      lines.push("");
     }
   }
 
