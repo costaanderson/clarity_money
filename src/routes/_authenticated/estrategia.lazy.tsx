@@ -27,8 +27,14 @@ import {
   Target,
   TrendingUp,
   Calendar,
-  X,
+  HelpCircle,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip";
 import { toast } from "sonner";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -255,28 +261,58 @@ function PlanForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
         </div>
 
         {/* MRR */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>MRR atual (R$)</Label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="Ex.: 8000"
-              value={goals.mrrCurrent || ""}
-              onChange={(e) => setGoals({ ...goals, mrrCurrent: Number(e.target.value) })}
-            />
+        <TooltipProvider>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Label>MRR atual (R$)</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[260px] text-xs">
+                    <p>
+                      <strong>MRR (Monthly Recurring Revenue)</strong> — receita mensal recorrente.
+                      É a soma das mensalidades fixas dos seus clientes ativos neste mês.
+                      Não inclui cobranças avulsas ou únicas.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Ex.: 8000"
+                value={goals.mrrCurrent || ""}
+                onChange={(e) => setGoals({ ...goals, mrrCurrent: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Label>MRR alvo ao fim do trimestre (R$)</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[260px] text-xs">
+                    <p>
+                      Qual MRR você quer atingir ao final do trimestre?
+                      Esse número ancora o plano — a IA vai calcular quantos clientes
+                      novos você precisa fechar para chegar lá.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Ex.: 15000"
+                value={goals.mrrTarget || ""}
+                onChange={(e) => setGoals({ ...goals, mrrTarget: Number(e.target.value) })}
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>MRR alvo ao fim do trimestre (R$)</Label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="Ex.: 15000"
-              value={goals.mrrTarget || ""}
-              onChange={(e) => setGoals({ ...goals, mrrTarget: Number(e.target.value) })}
-            />
-          </div>
-        </div>
+        </TooltipProvider>
 
         {/* Objetivo principal */}
         <div className="space-y-1.5">
