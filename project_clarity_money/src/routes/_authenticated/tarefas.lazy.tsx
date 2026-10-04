@@ -1,0 +1,247 @@
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createTask, deleteTask, listTasks, setTaskStatus } from "@/features/tasks/lib/tasks.functions";
+import { toIsoOrNull } from "@/features/tasks/lib/task-date";
+import { listClients } from "@/features/clients/lib/clients.functions";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { Label } from "@/shared/components/ui/label";
+import { Badge } from "@/shared/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import { ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { TaskEditSheet } from "@/features/tasks/components/task-edit-sheet";
+
+export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
+  "/_authenticated/tarefas",
+)({ component: TasksPage });
+
+type Task = Awaited<ReturnType<typeof listTasks>>[number];
+
+function TasksPage() {
+  const qc = useQueryClient();
+  const [filter, setFilter] = useState<"all" | "pendente" | "feito">("all");
+  const [range, setRange] = useState<"all" | "today" | "week" | "overdue">("today");
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const PAGE_SIZE = 5;
+
+  const tasksQ = useQuery({
+    queryKey: ["tasks", { filter, range }],
+    queryFn: () => listTasks({ data: { status: filter, range } }),
+    // reset showAll quando filtro muda
+    select: (data) => data,
+  });
+  const clientsQ = useQuery({
+    queryKey: ["clients", "select"],
+    queryFn: () => listClients({ data: { status: "all" } }),
+  });
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [dueAt, setDueAt] = useState<string>("");
+  const [clientId, setClientId] = useState<string>("none");
+
+  const add = useMutation({
+    mutationFn: () =>
+      createTask({
+        data: {
+          title,
+          description,
+          due_at: toIsoOrNull(dueAt),
+          client_id: clientId === "none" ? null : clientId,
+        },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      setTitle("");
+      setDescription("");
+      setDueAt("");
+      setClientId("none");
+      toast.success("Tarefa criada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const toggle = useMutation({
+    mutationFn: (v: { id: string; status: "pendente" | "feito" }) => setTaskStatus({ data: v }),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ["tasks", { filter, range }] });
+      const prev = qc.getQueryData<Task[]>(["tasks", { filter, range }]);
+      // Atualiza o status na cache sem remover o item da lista
+      qc.setQueryData<Task[]>(["tasks", { filter, range }], (old) =>
+        (old ?? []).map((t) => (t.id === v.id ? { ...t, status: v.status } : t)),
+      );
+      return { prev };
+    },
+    onSuccess: (_, v) => {
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      if (v.status === "feito") {
+        toast.success("Tarefa concluída", {
+          action: {
+            label: "Desfazer",
+            onClick: () => toggle.mutate({ id: v.id, status: "pendente" }),
+          },
+        });
+      }
+    },
+    onError: (_err, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["tasks", { filter, range }], ctx.prev);
+      toast.error("Erro ao atualizar tarefa");
+    },
+    onSettled: () => {
+      // Sincroniza com o servidor ao trocar de filtro, não imediatamente,
+      // para que o item permaneça visível e possa ser desfeito.
+      qc.invalidateQueries({ queryKey: ["tasks"], refetchType: "inactive" });
+    },
+  });
+  const del = useMutation({
+    mutationFn: (id: string) => deleteTask({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+  });
+
+  return (
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+      <header>
+        <p className="text-sm text-muted-foreground">Execução</p>
+        <h1 className="text-3xl font-serif">Tarefas</h1>
+      </header>
+
+      <Card>
+        <CardContent className="p-4 grid gap-3">
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <Label>Título</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ligar para o cliente…" />
+            </div>
+            <div>
+              <Label>Vencimento</Label>
+              <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <Label>Cliente</Label>
+              <Select value={clientId} onValueChange={setClientId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem cliente</SelectItem>
+                  {clientsQ.data?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button disabled={!title.trim() || add.isPending} onClick={() => add.mutate()}>Adicionar</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center gap-3">
+        <Select value={filter} onValueChange={(v) => { setFilter(v as typeof filter); setShowAll(false); }}>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="pendente">Pendentes</SelectItem>
+            <SelectItem value="feito">Feitas</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={range} onValueChange={(v) => { setRange(v as typeof range); setShowAll(false); }}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">Hoje</SelectItem>
+            <SelectItem value="all">Qualquer data</SelectItem>
+            <SelectItem value="week">Esta semana</SelectItem>
+            <SelectItem value="overdue">Atrasadas</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-2">
+        {tasksQ.data?.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma tarefa.</p>}
+        {(showAll ? tasksQ.data : tasksQ.data?.slice(0, PAGE_SIZE))?.map((t) => (
+          <Card key={t.id}>
+            <CardContent className="p-3 flex items-start gap-3">
+              <Checkbox
+                checked={t.status === "feito"}
+                onCheckedChange={(v) =>
+                  toggle.mutate({ id: t.id, status: v ? "feito" : "pendente" })
+                }
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0">
+                <button
+                  className={`text-left w-full ${t.status === "feito" ? "line-through text-muted-foreground" : "font-medium"} hover:underline`}
+                  onClick={() => setEditTask(t)}
+                >
+                  {t.title}
+                </button>
+                {t.description && (<p className="text-sm text-muted-foreground">{t.description}</p>)}
+                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                  {t.due_at && (<span>{new Date(t.due_at).toLocaleString("pt-BR")}</span>)}
+                  {t.clients?.name && (
+                    <Link to="/clientes/$id" params={{ id: t.clients.id }} className="underline">
+                      {t.clients.name}
+                    </Link>
+                  )}
+                  {t.source === "regra_ativacao" && (
+                    <Badge
+                      variant="secondary"
+                      title="Gerada automaticamente por uma regra de ativação configurada em Configurações → Regras"
+                    >
+                      Ativação
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Editar tarefa"
+                  onClick={() => setEditTask(t)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => del.mutate(t.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {!showAll && (tasksQ.data?.length ?? 0) > PAGE_SIZE && (
+          <button
+            className="w-full text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 py-2 transition-colors"
+            onClick={() => setShowAll(true)}
+          >
+            <ChevronDown className="h-4 w-4" />
+            Ver mais {(tasksQ.data?.length ?? 0) - PAGE_SIZE} tarefa{(tasksQ.data?.length ?? 0) - PAGE_SIZE !== 1 ? "s" : ""}
+          </button>
+        )}
+      </div>
+
+      <TaskEditSheet
+        task={editTask}
+        open={!!editTask}
+        onOpenChange={(o) => !o && setEditTask(null)}
+      />
+    </div>
+  );
+}
