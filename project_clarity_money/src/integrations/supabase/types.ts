@@ -102,6 +102,7 @@ export type Database = {
           end_at: string
           google_event_id: string | null
           id: string
+          is_personal: boolean
           location: string | null
           meet_link: string | null
           start_at: string
@@ -116,6 +117,7 @@ export type Database = {
           end_at: string
           google_event_id?: string | null
           id?: string
+          is_personal?: boolean
           location?: string | null
           meet_link?: string | null
           start_at: string
@@ -130,6 +132,7 @@ export type Database = {
           end_at?: string
           google_event_id?: string | null
           id?: string
+          is_personal?: boolean
           location?: string | null
           meet_link?: string | null
           start_at?: string

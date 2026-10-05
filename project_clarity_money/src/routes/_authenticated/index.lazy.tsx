@@ -89,6 +89,7 @@ function getCoachingText(counts?: { eventsThisWeek?: number; overdue?: number; t
 function DashboardPage() {
   const [weekOffset, setWeekOffset]     = useState(0);
   const [openDays, setOpenDays]         = useState<Set<string>>(() => new Set([new Date().toDateString()]));
+  const [hidePersonal, setHidePersonal] = useState(true);
   const [newTask, setNewTask]           = useState("");
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const qc = useQueryClient();
@@ -112,17 +113,22 @@ function DashboardPage() {
     });
   }, [data?.weekStart]);
 
+  // Filter personal events when toggle is active
+  const visibleEvents = useMemo(() => {
+    const all = data?.events ?? [];
+    return hidePersonal ? all.filter((e) => !(e as any).is_personal) : all;
+  }, [data?.events, hidePersonal]);
+
   // Group events by day key
   const eventsByDay = useMemo(() => {
-    const map = new Map<string, typeof allEvents>();
-    const allEvents = data?.events ?? [];
-    allEvents.forEach((e) => {
+    const map = new Map<string, typeof visibleEvents>();
+    visibleEvents.forEach((e) => {
       const key = new Date(e.start_at).toDateString();
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(e);
     });
     return map;
-  }, [data?.events]);
+  }, [visibleEvents]);
 
   // Combined task list: overdue first, then week tasks
   const allTasks = useMemo(() => {
@@ -137,6 +143,11 @@ function DashboardPage() {
       next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
+
+  const scrollToDay = (key: string) => {
+    const el = document.getElementById(`day-${key.replace(/\s+/g, "-")}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const addTask = useMutation({
     mutationFn: () =>
@@ -271,6 +282,10 @@ function DashboardPage() {
                       }}
                       onMouseEnter={(e) => { if (!isToday) (e.currentTarget as HTMLElement).style.background = C.container; }}
                       onMouseLeave={(e) => { if (!isToday) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      onClick={() => {
+                        if (!openDays.has(key)) toggleDay(key);
+                        setTimeout(() => scrollToDay(key), 50);
+                      }}
                     >
                       <span style={{ ...sans, fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: isToday ? "rgba(255,255,255,0.65)" : C.textMuted }}>
                         {dayLabel}
@@ -300,8 +315,8 @@ function DashboardPage() {
           />
           <KpiCard
             label="Compromissos"
-            value={counts?.eventsThisWeek}
-            sub={counts?.eventsThisWeek ? "nos 7 dias" : "sem compromissos"}
+            value={isLoading ? undefined : visibleEvents.length}
+            sub={visibleEvents.length ? "nos 7 dias" : "sem compromissos"}
             icon={<CalendarDays style={{ width: 19, height: 19, color: C.brand }} />}
             loading={isLoading}
           />
@@ -339,13 +354,17 @@ function DashboardPage() {
                   Compromissos da semana
                 </h2>
                 <span style={{ fontSize: "11px", fontWeight: 600, background: C.containerTop, color: C.textMuted, padding: "2px 10px", borderRadius: "9999px" }}>
-                  {counts?.eventsThisWeek ?? 0}
+                  {visibleEvents.length}
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <LinkBtn onClick={() => setOpenDays(new Set(weekDays.map((d) => d.toDateString())))}>Expandir todos</LinkBtn>
                 <span style={{ color: C.outlineVariant }}>·</span>
                 <LinkBtn onClick={() => setOpenDays(new Set())}>Recolher</LinkBtn>
+                <span style={{ color: C.outlineVariant }}>·</span>
+                <LinkBtn onClick={() => setHidePersonal((v) => !v)}>
+                  {hidePersonal ? "Mostrar pessoais" : "Ocultar pessoais"}
+                </LinkBtn>
               </div>
             </div>
 
@@ -361,7 +380,7 @@ function DashboardPage() {
                   const label      = fullLabel.charAt(0).toUpperCase() + fullLabel.slice(1);
 
                   return (
-                    <div key={key} style={{
+                    <div key={key} id={`day-${key.replace(/\s+/g, "-")}`} style={{
                       background: C.containerBase,
                       borderRadius: "0.75rem",
                       boxShadow: isToday
@@ -590,11 +609,11 @@ function DashboardPage() {
                 </span>
               </div>
               <blockquote style={{ ...serif, fontSize: "17px", fontWeight: 400, color: C.text, fontStyle: "italic", lineHeight: 1.65, margin: 0 }}>
-                "{getCoachingText(counts)}"
+                "{getCoachingText({ ...counts, eventsThisWeek: visibleEvents.length })}"
               </blockquote>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: C.textMuted, fontSize: "12.5px", marginTop: "2px" }}>
                 <Sparkles style={{ width: 14, height: 14, color: C.brand, flexShrink: 0 }} />
-                <span>Reflexão gerada a partir dos seus {counts?.eventsThisWeek ?? 0} compromissos.</span>
+                <span>Reflexão gerada a partir dos seus {visibleEvents.length} compromissos.</span>
               </div>
             </div>
 

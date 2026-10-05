@@ -67,6 +67,7 @@ export const getWeekDashboard = createServerFn({ method: "GET" })
       title: string;
       start_at: string;
       end_at: string;
+      is_personal: false;
       clients: null;
       from_google: true;
     }[] = [];
@@ -89,6 +90,7 @@ export const getWeekDashboard = createServerFn({ method: "GET" })
             title: e.title,
             start_at: e.start_at,
             end_at: e.end_at,
+            is_personal: false as const,
             clients: null,
             from_google: true as const,
           }));

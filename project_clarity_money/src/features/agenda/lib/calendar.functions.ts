@@ -17,6 +17,7 @@ const eventSchema = z.object({
   start_at: z.string(),
   end_at: z.string(),
   client_id: z.string().uuid().nullable().optional(),
+  is_personal: z.boolean().optional().default(false),
 });
 
 // ─── Unified event type returned to the client ───────────────────────────────
@@ -30,6 +31,7 @@ type LocalEvent = {
   start_at: string;
   end_at: string;
   google_event_id: string | null;
+  is_personal: boolean;
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -118,6 +120,7 @@ export const createEvent = createServerFn({ method: "POST" })
         start_at: data.start_at,
         end_at: data.end_at,
         client_id: data.client_id || null,
+        is_personal: data.is_personal ?? false,
         user_id: context.userId,
       })
       .select()

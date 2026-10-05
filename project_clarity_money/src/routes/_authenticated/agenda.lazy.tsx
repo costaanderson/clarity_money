@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { Switch } from "@/shared/components/ui/switch";
 import { CalendarClock, Trash2, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -59,6 +60,7 @@ function AgendaPage() {
   const [end, setEnd] = useState("");
   const [meet, setMeet] = useState("");
   const [clientId, setClientId] = useState<string>("none");
+  const [isPersonal, setIsPersonal] = useState(false);
 
   const add = useMutation({
     mutationFn: () =>
@@ -70,12 +72,13 @@ function AgendaPage() {
           start_at: new Date(start).toISOString(),
           end_at: new Date(end).toISOString(),
           client_id: clientId === "none" ? null : clientId,
+          is_personal: isPersonal,
         },
       }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      setTitle(""); setDescription(""); setStart(""); setEnd(""); setMeet(""); setClientId("none");
+      setTitle(""); setDescription(""); setStart(""); setEnd(""); setMeet(""); setClientId("none"); setIsPersonal(false);
       if (googleConnected && !result.syncedToGoogle) {
         toast.warning("Compromisso criado, mas não foi possível sincronizar com o Google Agenda. Verifique a conexão em Configurações.");
       } else if (result.syncedToGoogle) {
@@ -161,6 +164,12 @@ function AgendaPage() {
           <div>
             <Label>Notas</Label>
             <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch id="is-personal" checked={isPersonal} onCheckedChange={setIsPersonal} />
+            <Label htmlFor="is-personal" className="cursor-pointer text-sm text-muted-foreground">
+              Evento pessoal (almoço, particular…)
+            </Label>
           </div>
           <div className="flex justify-end">
             <Button
@@ -251,6 +260,11 @@ function EventsGrouped({
                           {isGoogleOnly && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600">
                               Google Agenda
+                            </Badge>
+                          )}
+                          {!isGoogleOnly && (e as any).is_personal && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400 text-amber-600">
+                              Pessoal
                             </Badge>
                           )}
                         </div>
