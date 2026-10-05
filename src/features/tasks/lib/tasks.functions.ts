@@ -38,7 +38,7 @@ export const createTask = createServerFn({ method: "POST" })
     z
       .object({
         title: z.string().min(1).max(200),
-        description: z.string().max(2000).optional().or(z.literal("")),
+        description: z.string().max(2000).nullable().optional(),
         due_at: z.string().nullable().optional(),
         client_id: z.string().uuid().nullable().optional(),
       })
