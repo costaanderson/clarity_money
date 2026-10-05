@@ -530,7 +530,7 @@ function DashboardPage() {
                         background: t.isOverdue ? C.errorContainer : C.containerTop,
                         color: t.isOverdue ? C.error : C.textMuted,
                       }}>
-                        {t.isOverdue ? "Atrasada" : "Semana"}
+                        {t.isOverdue ? "Atrasada" : t.due_at ? "Semana" : "Sem prazo"}
                       </span>
                     </div>
                   );

@@ -41,10 +41,13 @@ export const getWeekDashboard = createServerFn({ method: "GET" })
       context.supabase
         .from("tasks")
         .select("*, clients(id,name)")
-        .in("status", ["pendente"])
-        .gte("due_at", weekStart.toISOString())
-        .lt("due_at", weekEnd.toISOString())
-        .order("due_at"),
+        .eq("status", "pendente")
+        .or(
+          isCurrentWeek
+            ? `due_at.is.null,and(due_at.gte.${weekStart.toISOString()},due_at.lt.${weekEnd.toISOString()})`
+            : `and(due_at.gte.${weekStart.toISOString()},due_at.lt.${weekEnd.toISOString()})`,
+        )
+        .order("due_at", { nullsFirst: false }),
       context.supabase.from("clients").select("id", { count: "exact", head: true }).eq("status", "ativo"),
       context.supabase.from("clients").select("id", { count: "exact", head: true }).eq("status", "lead"),
       context.supabase
