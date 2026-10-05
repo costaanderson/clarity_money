@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Clarity Money",
+    "subtitle": "CRM para planejadores financeiros — arquitetura do sistema",
+    "output": "clarity-money-architecture.html",
+    "views": [
+      {
+        "id": "main-flow",
+        "label": "Fluxo Principal",
+        "focus": ["advisor", "spa", "server_layer", "supabase"],
+        "note": "O planejador acessa o SPA → server functions → Supabase (banco + auth)."
+      },
+      {
+        "id": "google-calendar",
+        "label": "Integração Google",
+        "focus": ["spa", "server_layer", "gcal"],
+        "note": "A Agenda sincroniza eventos via Google Calendar API com OAuth2."
+      },
+      {
+        "id": "donna-ai",
+        "label": "Donna / IA",
+        "focus": ["spa", "server_layer", "gemini"],
+        "note": "Donna gera briefings diários com Google Gemini 2.5 Flash."
+      },
+      {
+        "id": "public-api",
+        "label": "API Pública",
+        "focus": ["public_user", "api_public", "supabase"],
+        "note": "Leads e diagnósticos chegam via API pública sem autenticação."
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "cols": 4,
+    "origin": [40, 80],
+    "gapX": 40,
+    "gapY": 50,
+    "cellW": 130,
+    "cellH": 60
+  },
+  "components": [
+    {
+      "id": "advisor",
+      "type": "external",
+      "label": "Planejador Financeiro",
+      "sublabel": "usuário principal",
+      "row": 1,
+      "col": 0,
+      "size": [144, 60]
+    },
+    {
+      "id": "public_user",
+      "type": "external",
+      "label": "Usuário Público",
+      "sublabel": "leads e diagnóstico",
+      "row": 3,
+      "col": 0,
+      "size": [140, 60]
+    },
+    {
+      "id": "spa",
+      "type": "frontend",
+      "label": "React SPA",
+      "sublabel": "Cockpit · Agenda · CRM · IA",
+      "tag": "TanStack Router",
+      "row": 1,
+      "col": 1
+    },
+    {
+      "id": "server_layer",
+      "type": "backend",
+      "label": "Server Functions",
+      "sublabel": "TanStack Start",
+      "row": 1,
+      "col": 2
+    },
+    {
+      "id": "api_public",
+      "type": "backend",
+      "label": "API Pública",
+      "sublabel": "leads + diagnóstico",
+      "row": 3,
+      "col": 2
+    },
+    {
+      "id": "supabase",
+      "type": "database",
+      "label": "Supabase",
+      "sublabel": "PostgreSQL + Auth",
+      "row": 1,
+      "col": 3
+    },
+    {
+      "id": "gcal",
+      "type": "cloud",
+      "label": "Google Calendar",
+      "sublabel": "OAuth2 API",
+      "row": 2,
+      "col": 3
+    },
+    {
+      "id": "gemini",
+      "type": "cloud",
+      "label": "Google Gemini AI",
+      "sublabel": "Gemini 2.5 Flash",
+      "row": 3,
+      "col": 3
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Vercel — SSR + Edge",
+      "wraps": ["spa", "server_layer", "api_public"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "advisor-spa",
+      "from": "advisor",
+      "to": "spa",
+      "label": "HTTPS",
+      "variant": "emphasis",
+      "labelDy": -24
+    },
+    {
+      "id": "spa-server",
+      "from": "spa",
+      "to": "server_layer",
+      "label": "server fns",
+      "variant": "emphasis",
+      "labelDy": -24
+    },
+    {
+      "id": "server-supabase",
+      "from": "server_layer",
+      "to": "supabase",
+      "label": "SQL / REST",
+      "variant": "emphasis",
+      "labelDy": -17
+    },
+    {
+      "id": "server-gcal",
+      "from": "server_layer",
+      "to": "gcal",
+      "label": "Calendar API",
+      "labelDx": -50
+    },
+    {
+      "id": "server-gemini",
+      "from": "server_layer",
+      "to": "gemini",
+      "label": "Gemini API",
+      "labelDy": 47
+    },
+    {
+      "id": "public-api-public",
+      "from": "public_user",
+      "to": "api_public",
+      "label": "POST",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Páginas Autenticadas",
+      "items": [
+        "Cockpit — visão semanal com alertas e carga",
+        "Agenda — sync bidirecional Google Calendar",
+        "Clientes + Pipeline — CRM e funil de vendas",
+        "Tarefas — gestão de ações por cliente",
+        "Donna — briefing diário gerado por IA",
+        "Categorias, Regras de Ativação, Configurações"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Banco de Dados (Supabase)",
+      "items": [
+        "clients, notes, tasks, documents",
+        "calendar_events, categories",
+        "activation_rules, ai_generations",
+        "google_calendar_tokens, profiles",
+        "lead_intake_log, client_diagnostics"
+      ]
+    }
+  ]
+}
