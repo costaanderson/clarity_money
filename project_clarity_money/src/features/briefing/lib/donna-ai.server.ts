@@ -7,8 +7,16 @@ import { DONNA_SYSTEM_PROMPT } from "./donna-system-prompt";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function toLocalDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const SP_TZ = "America/Sao_Paulo";
+
+/** Retorna "YYYY-MM-DD" para hoje no fuso de SP (UTC-3). */
+function todaySP(): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: SP_TZ }).format(new Date());
+}
+
+/** Retorna um Date de meio-dia em SP para cálculos de diferença de dias. */
+function noonSP(): Date {
+  return new Date(`${todaySP()}T12:00:00-03:00`);
 }
 
 function daysUntilNextOccurrence(month: number, day: number, today: Date): number | null {
@@ -29,7 +37,7 @@ function daysUntilNextOccurrence(month: number, day: number, today: Date): numbe
 export const getTodayDonnaBriefing = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const today = toLocalDate(new Date());
+    const today = todaySP();
     const { data } = await context.supabase
       .from("donna_briefings" as any)
       .select("content, created_at")
@@ -49,10 +57,10 @@ export const getTodayDonnaBriefing = createServerFn({ method: "GET" })
 export const generateDonnaBriefing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ content: string }> => {
-    const today = new Date();
-    const todayStr = toLocalDate(today);
-    const dayStart = new Date(`${todayStr}T00:00:00`).toISOString();
-    const dayEnd = new Date(`${todayStr}T23:59:59`).toISOString();
+    const todayStr = todaySP();
+    const today = noonSP();
+    const dayStart = `${todayStr}T00:00:00-03:00`;
+    const dayEnd = `${todayStr}T23:59:59-03:00`;
 
     const { data: localEvents } = await context.supabase
       .from("calendar_events")
@@ -275,11 +283,12 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
       getCallableAiConfig(context.userId),
     ]);
 
-    const dateLabel = today.toLocaleDateString("pt-BR", {
+    const dateLabel = new Date().toLocaleDateString("pt-BR", {
       weekday: "long",
       day: "2-digit",
       month: "long",
       year: "numeric",
+      timeZone: SP_TZ,
     });
 
     const lines: string[] = [
@@ -300,6 +309,7 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
       const hora = new Date(m.startAt).toLocaleTimeString("pt-BR", {
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: SP_TZ,
       });
       lines.push(
         `${hora} — ${m.title}${m.clientType ? ` (${m.clientType})` : ""}${m.fromGoogle ? " [Google]" : ""}`,
@@ -318,7 +328,7 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
 
         if (ctxNote) {
           lines.push(
-            `Contexto comportamental (${new Date(ctxNote.created_at).toLocaleDateString("pt-BR")}):`,
+            `Contexto comportamental (${new Date(ctxNote.created_at).toLocaleDateString("pt-BR", { timeZone: SP_TZ })}):`,
           );
           lines.push('"""');
           lines.push(ctxNote.content.slice(0, 1500));
@@ -331,7 +341,7 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
           lines.push("Últimas notas de sessão:");
           for (const n of sessionNotes) {
             lines.push(
-              `- [${new Date(n.created_at).toLocaleDateString("pt-BR")}] ${n.content.slice(0, 300)}`,
+              `- [${new Date(n.created_at).toLocaleDateString("pt-BR", { timeZone: SP_TZ })}] ${n.content.slice(0, 300)}`,
             );
           }
         }
@@ -344,7 +354,7 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
         }
 
         lines.push(
-          `Tarefas atrasadas: ${overdue.length > 0 ? overdue.map((t) => `${t.title} (vencia ${t.due_at ? new Date(t.due_at).toLocaleDateString("pt-BR") : "?"}`).join("; ") : "nenhuma"}`,
+          `Tarefas atrasadas: ${overdue.length > 0 ? overdue.map((t) => `${t.title} (vencia ${t.due_at ? new Date(t.due_at).toLocaleDateString("pt-BR", { timeZone: SP_TZ }) : "?"}`).join("; ") : "nenhuma"}`,
         );
         lines.push(
           `Tarefas em aberto: ${open.length > 0 ? open.map((t) => t.title).join("; ") : "nenhuma"}`,
@@ -366,7 +376,7 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
           `- ${c.name} (${c.type}) — ${c.daysSince !== null ? `${c.daysSince} dias sem sessão` : "sem histórico"}`,
         );
         if (lastEv)
-          lines.push(`  última sessão: ${new Date(lastEv).toLocaleDateString("pt-BR")}`);
+          lines.push(`  última sessão: ${new Date(lastEv).toLocaleDateString("pt-BR", { timeZone: SP_TZ })}`);
       }
     }
 
@@ -403,6 +413,7 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
         const hora = new Date(lead.created_at).toLocaleTimeString("pt-BR", {
           hour: "2-digit",
           minute: "2-digit",
+          timeZone: SP_TZ,
         });
         const canal =
           lead.source === "instagram"
@@ -431,7 +442,7 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
       lines.push("(nenhuma pasta configurada ou sem arquivos)");
     } else {
       for (const f of driveFiles) {
-        const modDate = new Date(f.modifiedTime).toLocaleDateString("pt-BR");
+        const modDate = new Date(f.modifiedTime).toLocaleDateString("pt-BR", { timeZone: SP_TZ });
         lines.push(`[${f.name}] (atualizado em ${modDate})`);
         lines.push(f.content);
         lines.push("");
