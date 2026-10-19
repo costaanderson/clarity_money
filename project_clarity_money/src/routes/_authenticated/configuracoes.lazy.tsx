@@ -8,7 +8,7 @@ import {
   listIntakeTokens,
   createIntakeToken,
   revokeIntakeToken,
-} from "@/features/cockpit/lib/cockpit.functions";
+} from "@/features/cockpit/lib/cockpit.server";
 import {
   getGoogleAuthUrl,
   getGoogleConnectionStatus,

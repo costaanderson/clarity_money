@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { updateTask } from "@/features/tasks/lib/tasks.functions";
-import { toIsoOrNull } from "@/features/tasks/lib/task-date";
-import { listClients } from "@/features/clients/lib/clients.functions";
+import { updateTask } from "@/features/tasks/lib/tasks.server";
+import { toIsoOrNull } from "@/features/tasks/lib/tasks.logic";
+import { listClients } from "@/features/clients/lib/clients.server";
 import {
   Sheet,
   SheetContent,

@@ -11,40 +11,38 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
-import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as ApiPublicLeadsRouteImport } from './routes/api/public/leads'
-import { Route as ApiPublicDiagnosticoRouteImport } from './routes/api/public/diagnostico'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
+import { Route as ApiCronDonnaBriefingRouteImport } from './routes/api/cron/donna-briefing'
 import { Route as ApiGoogleCallbackRouteImport } from './routes/api/google/callback'
+import { Route as ApiPublicDiagnosticoRouteImport } from './routes/api/public/diagnostico'
+import { Route as ApiPublicLeadsRouteImport } from './routes/api/public/leads'
 
 const AuthenticatedIndexLazyRouteImport = createFileRoute('/_authenticated/')()
-const AuthenticatedTarefasLazyRouteImport = createFileRoute(
-  '/_authenticated/tarefas',
-)()
-const AuthenticatedRegrasAtivacaoLazyRouteImport = createFileRoute(
-  '/_authenticated/regras-ativacao',
-)()
-const AuthenticatedPipelineLazyRouteImport = createFileRoute(
-  '/_authenticated/pipeline',
-)()
-const AuthenticatedEstrategiaLazyRouteImport = createFileRoute(
-  '/_authenticated/estrategia',
-)()
-const AuthenticatedConfiguracoesLazyRouteImport = createFileRoute(
-  '/_authenticated/configuracoes',
-)()
-const AuthenticatedCockpitLazyRouteImport = createFileRoute(
-  '/_authenticated/cockpit',
-)()
-const AuthenticatedCategoriasLazyRouteImport = createFileRoute(
-  '/_authenticated/categorias',
+const AuthenticatedAgendaLazyRouteImport = createFileRoute(
+  '/_authenticated/agenda',
 )()
 const AuthenticatedBriefingLazyRouteImport = createFileRoute(
   '/_authenticated/briefing',
 )()
-const AuthenticatedAgendaLazyRouteImport = createFileRoute(
-  '/_authenticated/agenda',
+const AuthenticatedCategoriasLazyRouteImport = createFileRoute(
+  '/_authenticated/categorias',
+)()
+const AuthenticatedCockpitLazyRouteImport = createFileRoute(
+  '/_authenticated/cockpit',
+)()
+const AuthenticatedConfiguracoesLazyRouteImport = createFileRoute(
+  '/_authenticated/configuracoes',
+)()
+const AuthenticatedEstrategiaLazyRouteImport = createFileRoute(
+  '/_authenticated/estrategia',
+)()
+const AuthenticatedPipelineLazyRouteImport = createFileRoute(
+  '/_authenticated/pipeline',
+)()
+const AuthenticatedTarefasLazyRouteImport = createFileRoute(
+  '/_authenticated/tarefas',
 )()
 const AuthenticatedClientesIndexLazyRouteImport = createFileRoute(
   '/_authenticated/clientes/',
@@ -53,22 +51,22 @@ const AuthenticatedClientesIdLazyRouteImport = createFileRoute(
   '/_authenticated/clientes/$id',
 )()
 
-const DiagnosticoRoute = DiagnosticoRouteImport.update({
-  id: '/diagnostico',
-  path: '/diagnostico',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/auth.lazy').then((d) => d.Route))
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() =>
   import('./routes/_authenticated/route.lazy').then((d) => d.Route),
 )
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/auth.lazy').then((d) => d.Route))
+const DiagnosticoRoute = DiagnosticoRouteImport.update({
+  id: '/diagnostico',
+  path: '/diagnostico',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedIndexLazyRoute = AuthenticatedIndexLazyRouteImport.update({
   id: '/',
   path: '/',
@@ -76,53 +74,20 @@ const AuthenticatedIndexLazyRoute = AuthenticatedIndexLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_authenticated/index.lazy').then((d) => d.Route),
 )
-const AuthenticatedTarefasLazyRoute =
-  AuthenticatedTarefasLazyRouteImport.update({
-    id: '/tarefas',
-    path: '/tarefas',
+const AuthenticatedAgendaLazyRoute = AuthenticatedAgendaLazyRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any).lazy(() =>
+  import('./routes/_authenticated/agenda.lazy').then((d) => d.Route),
+)
+const AuthenticatedBriefingLazyRoute =
+  AuthenticatedBriefingLazyRouteImport.update({
+    id: '/briefing',
+    path: '/briefing',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any).lazy(() =>
-    import('./routes/_authenticated/tarefas.lazy').then((d) => d.Route),
-  )
-const AuthenticatedRegrasAtivacaoLazyRoute =
-  AuthenticatedRegrasAtivacaoLazyRouteImport.update({
-    id: '/regras-ativacao',
-    path: '/regras-ativacao',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/regras-ativacao.lazy').then((d) => d.Route),
-  )
-const AuthenticatedPipelineLazyRoute =
-  AuthenticatedPipelineLazyRouteImport.update({
-    id: '/pipeline',
-    path: '/pipeline',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/pipeline.lazy').then((d) => d.Route),
-  )
-const AuthenticatedEstrategiaLazyRoute =
-  AuthenticatedEstrategiaLazyRouteImport.update({
-    id: '/estrategia',
-    path: '/estrategia',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/estrategia.lazy').then((d) => d.Route),
-  )
-const AuthenticatedConfiguracoesLazyRoute =
-  AuthenticatedConfiguracoesLazyRouteImport.update({
-    id: '/configuracoes',
-    path: '/configuracoes',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/configuracoes.lazy').then((d) => d.Route),
-  )
-const AuthenticatedCockpitLazyRoute =
-  AuthenticatedCockpitLazyRouteImport.update({
-    id: '/cockpit',
-    path: '/cockpit',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any).lazy(() =>
-    import('./routes/_authenticated/cockpit.lazy').then((d) => d.Route),
+    import('./routes/_authenticated/briefing.lazy').then((d) => d.Route),
   )
 const AuthenticatedCategoriasLazyRoute =
   AuthenticatedCategoriasLazyRouteImport.update({
@@ -132,21 +97,46 @@ const AuthenticatedCategoriasLazyRoute =
   } as any).lazy(() =>
     import('./routes/_authenticated/categorias.lazy').then((d) => d.Route),
   )
-const AuthenticatedBriefingLazyRoute =
-  AuthenticatedBriefingLazyRouteImport.update({
-    id: '/briefing',
-    path: '/briefing',
+const AuthenticatedCockpitLazyRoute =
+  AuthenticatedCockpitLazyRouteImport.update({
+    id: '/cockpit',
+    path: '/cockpit',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any).lazy(() =>
-    import('./routes/_authenticated/briefing.lazy').then((d) => d.Route),
+    import('./routes/_authenticated/cockpit.lazy').then((d) => d.Route),
   )
-const AuthenticatedAgendaLazyRoute = AuthenticatedAgendaLazyRouteImport.update({
-  id: '/agenda',
-  path: '/agenda',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any).lazy(() =>
-  import('./routes/_authenticated/agenda.lazy').then((d) => d.Route),
-)
+const AuthenticatedConfiguracoesLazyRoute =
+  AuthenticatedConfiguracoesLazyRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any).lazy(() =>
+    import('./routes/_authenticated/configuracoes.lazy').then((d) => d.Route),
+  )
+const AuthenticatedEstrategiaLazyRoute =
+  AuthenticatedEstrategiaLazyRouteImport.update({
+    id: '/estrategia',
+    path: '/estrategia',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any).lazy(() =>
+    import('./routes/_authenticated/estrategia.lazy').then((d) => d.Route),
+  )
+const AuthenticatedPipelineLazyRoute =
+  AuthenticatedPipelineLazyRouteImport.update({
+    id: '/pipeline',
+    path: '/pipeline',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any).lazy(() =>
+    import('./routes/_authenticated/pipeline.lazy').then((d) => d.Route),
+  )
+const AuthenticatedTarefasLazyRoute =
+  AuthenticatedTarefasLazyRouteImport.update({
+    id: '/tarefas',
+    path: '/tarefas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any).lazy(() =>
+    import('./routes/_authenticated/tarefas.lazy').then((d) => d.Route),
+  )
 const AuthenticatedClientesIndexLazyRoute =
   AuthenticatedClientesIndexLazyRouteImport.update({
     id: '/clientes/',
@@ -163,9 +153,14 @@ const AuthenticatedClientesIdLazyRoute =
   } as any).lazy(() =>
     import('./routes/_authenticated/clientes/$id.lazy').then((d) => d.Route),
   )
-const ApiPublicLeadsRoute = ApiPublicLeadsRouteImport.update({
-  id: '/api/public/leads',
-  path: '/api/public/leads',
+const ApiCronDonnaBriefingRoute = ApiCronDonnaBriefingRouteImport.update({
+  id: '/api/cron/donna-briefing',
+  path: '/api/cron/donna-briefing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGoogleCallbackRoute = ApiGoogleCallbackRouteImport.update({
+  id: '/api/google/callback',
+  path: '/api/google/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicDiagnosticoRoute = ApiPublicDiagnosticoRouteImport.update({
@@ -173,9 +168,9 @@ const ApiPublicDiagnosticoRoute = ApiPublicDiagnosticoRouteImport.update({
   path: '/api/public/diagnostico',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiGoogleCallbackRoute = ApiGoogleCallbackRouteImport.update({
-  id: '/api/google/callback',
-  path: '/api/google/callback',
+const ApiPublicLeadsRoute = ApiPublicLeadsRouteImport.update({
+  id: '/api/public/leads',
+  path: '/api/public/leads',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -190,8 +185,8 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AuthenticatedConfiguracoesLazyRoute
   '/estrategia': typeof AuthenticatedEstrategiaLazyRoute
   '/pipeline': typeof AuthenticatedPipelineLazyRoute
-  '/regras-ativacao': typeof AuthenticatedRegrasAtivacaoLazyRoute
   '/tarefas': typeof AuthenticatedTarefasLazyRoute
+  '/api/cron/donna-briefing': typeof ApiCronDonnaBriefingRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/public/diagnostico': typeof ApiPublicDiagnosticoRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -208,9 +203,9 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AuthenticatedConfiguracoesLazyRoute
   '/estrategia': typeof AuthenticatedEstrategiaLazyRoute
   '/pipeline': typeof AuthenticatedPipelineLazyRoute
-  '/regras-ativacao': typeof AuthenticatedRegrasAtivacaoLazyRoute
   '/tarefas': typeof AuthenticatedTarefasLazyRoute
   '/': typeof AuthenticatedIndexLazyRoute
+  '/api/cron/donna-briefing': typeof ApiCronDonnaBriefingRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/public/diagnostico': typeof ApiPublicDiagnosticoRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -229,9 +224,9 @@ export interface FileRoutesById {
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesLazyRoute
   '/_authenticated/estrategia': typeof AuthenticatedEstrategiaLazyRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineLazyRoute
-  '/_authenticated/regras-ativacao': typeof AuthenticatedRegrasAtivacaoLazyRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasLazyRoute
   '/_authenticated/': typeof AuthenticatedIndexLazyRoute
+  '/api/cron/donna-briefing': typeof ApiCronDonnaBriefingRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/public/diagnostico': typeof ApiPublicDiagnosticoRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -251,8 +246,8 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/estrategia'
     | '/pipeline'
-    | '/regras-ativacao'
     | '/tarefas'
+    | '/api/cron/donna-briefing'
     | '/api/google/callback'
     | '/api/public/diagnostico'
     | '/api/public/leads'
@@ -269,9 +264,9 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/estrategia'
     | '/pipeline'
-    | '/regras-ativacao'
     | '/tarefas'
     | '/'
+    | '/api/cron/donna-briefing'
     | '/api/google/callback'
     | '/api/public/diagnostico'
     | '/api/public/leads'
@@ -289,9 +284,9 @@ export interface FileRouteTypes {
     | '/_authenticated/configuracoes'
     | '/_authenticated/estrategia'
     | '/_authenticated/pipeline'
-    | '/_authenticated/regras-ativacao'
     | '/_authenticated/tarefas'
     | '/_authenticated/'
+    | '/api/cron/donna-briefing'
     | '/api/google/callback'
     | '/api/public/diagnostico'
     | '/api/public/leads'
@@ -303,6 +298,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
+  ApiCronDonnaBriefingRoute: typeof ApiCronDonnaBriefingRoute
   ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
   ApiPublicDiagnosticoRoute: typeof ApiPublicDiagnosticoRoute
   ApiPublicLeadsRoute: typeof ApiPublicLeadsRoute
@@ -310,11 +306,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/diagnostico': {
-      id: '/diagnostico'
-      path: '/diagnostico'
-      fullPath: '/diagnostico'
-      preLoaderRoute: typeof DiagnosticoRouteImport
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -324,11 +320,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+    '/diagnostico': {
+      id: '/diagnostico'
+      path: '/diagnostico'
+      fullPath: '/diagnostico'
+      preLoaderRoute: typeof DiagnosticoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/': {
@@ -338,53 +334,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexLazyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tarefas': {
-      id: '/_authenticated/tarefas'
-      path: '/tarefas'
-      fullPath: '/tarefas'
-      preLoaderRoute: typeof AuthenticatedTarefasLazyRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/regras-ativacao': {
-      id: '/_authenticated/regras-ativacao'
-      path: '/regras-ativacao'
-      fullPath: '/regras-ativacao'
-      preLoaderRoute: typeof AuthenticatedRegrasAtivacaoLazyRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/pipeline': {
-      id: '/_authenticated/pipeline'
-      path: '/pipeline'
-      fullPath: '/pipeline'
-      preLoaderRoute: typeof AuthenticatedPipelineLazyRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/estrategia': {
-      id: '/_authenticated/estrategia'
-      path: '/estrategia'
-      fullPath: '/estrategia'
-      preLoaderRoute: typeof AuthenticatedEstrategiaLazyRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/configuracoes': {
-      id: '/_authenticated/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof AuthenticatedConfiguracoesLazyRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/cockpit': {
-      id: '/_authenticated/cockpit'
-      path: '/cockpit'
-      fullPath: '/cockpit'
-      preLoaderRoute: typeof AuthenticatedCockpitLazyRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/categorias': {
-      id: '/_authenticated/categorias'
-      path: '/categorias'
-      fullPath: '/categorias'
-      preLoaderRoute: typeof AuthenticatedCategoriasLazyRouteImport
+    '/_authenticated/agenda': {
+      id: '/_authenticated/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AuthenticatedAgendaLazyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/briefing': {
@@ -394,11 +348,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBriefingLazyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/agenda': {
-      id: '/_authenticated/agenda'
-      path: '/agenda'
-      fullPath: '/agenda'
-      preLoaderRoute: typeof AuthenticatedAgendaLazyRouteImport
+    '/_authenticated/categorias': {
+      id: '/_authenticated/categorias'
+      path: '/categorias'
+      fullPath: '/categorias'
+      preLoaderRoute: typeof AuthenticatedCategoriasLazyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cockpit': {
+      id: '/_authenticated/cockpit'
+      path: '/cockpit'
+      fullPath: '/cockpit'
+      preLoaderRoute: typeof AuthenticatedCockpitLazyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesLazyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/estrategia': {
+      id: '/_authenticated/estrategia'
+      path: '/estrategia'
+      fullPath: '/estrategia'
+      preLoaderRoute: typeof AuthenticatedEstrategiaLazyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pipeline': {
+      id: '/_authenticated/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof AuthenticatedPipelineLazyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tarefas': {
+      id: '/_authenticated/tarefas'
+      path: '/tarefas'
+      fullPath: '/tarefas'
+      preLoaderRoute: typeof AuthenticatedTarefasLazyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/clientes/': {
@@ -415,11 +404,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesIdLazyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/leads': {
-      id: '/api/public/leads'
-      path: '/api/public/leads'
-      fullPath: '/api/public/leads'
-      preLoaderRoute: typeof ApiPublicLeadsRouteImport
+    '/api/cron/donna-briefing': {
+      id: '/api/cron/donna-briefing'
+      path: '/api/cron/donna-briefing'
+      fullPath: '/api/cron/donna-briefing'
+      preLoaderRoute: typeof ApiCronDonnaBriefingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/google/callback': {
+      id: '/api/google/callback'
+      path: '/api/google/callback'
+      fullPath: '/api/google/callback'
+      preLoaderRoute: typeof ApiGoogleCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/diagnostico': {
@@ -429,11 +425,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDiagnosticoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/google/callback': {
-      id: '/api/google/callback'
-      path: '/api/google/callback'
-      fullPath: '/api/google/callback'
-      preLoaderRoute: typeof ApiGoogleCallbackRouteImport
+    '/api/public/leads': {
+      id: '/api/public/leads'
+      path: '/api/public/leads'
+      fullPath: '/api/public/leads'
+      preLoaderRoute: typeof ApiPublicLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -447,7 +443,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracoesLazyRoute: typeof AuthenticatedConfiguracoesLazyRoute
   AuthenticatedEstrategiaLazyRoute: typeof AuthenticatedEstrategiaLazyRoute
   AuthenticatedPipelineLazyRoute: typeof AuthenticatedPipelineLazyRoute
-  AuthenticatedRegrasAtivacaoLazyRoute: typeof AuthenticatedRegrasAtivacaoLazyRoute
   AuthenticatedTarefasLazyRoute: typeof AuthenticatedTarefasLazyRoute
   AuthenticatedIndexLazyRoute: typeof AuthenticatedIndexLazyRoute
   AuthenticatedClientesIdLazyRoute: typeof AuthenticatedClientesIdLazyRoute
@@ -462,7 +457,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracoesLazyRoute: AuthenticatedConfiguracoesLazyRoute,
   AuthenticatedEstrategiaLazyRoute: AuthenticatedEstrategiaLazyRoute,
   AuthenticatedPipelineLazyRoute: AuthenticatedPipelineLazyRoute,
-  AuthenticatedRegrasAtivacaoLazyRoute: AuthenticatedRegrasAtivacaoLazyRoute,
   AuthenticatedTarefasLazyRoute: AuthenticatedTarefasLazyRoute,
   AuthenticatedIndexLazyRoute: AuthenticatedIndexLazyRoute,
   AuthenticatedClientesIdLazyRoute: AuthenticatedClientesIdLazyRoute,
@@ -476,6 +470,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   DiagnosticoRoute: DiagnosticoRoute,
+  ApiCronDonnaBriefingRoute: ApiCronDonnaBriefingRoute,
   ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
   ApiPublicDiagnosticoRoute: ApiPublicDiagnosticoRoute,
   ApiPublicLeadsRoute: ApiPublicLeadsRoute,

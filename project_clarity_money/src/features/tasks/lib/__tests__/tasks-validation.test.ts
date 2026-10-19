@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createTaskSchema, updateTaskSchema } from "../task-schemas";
-import { toIsoOrNull } from "../task-date";
+import { createTaskSchema, updateTaskSchema } from "../tasks.schemas";
+import { toIsoOrNull } from "../tasks.logic";
 
 // ─── createTaskSchema ────────────────────────────────────────────────────────
 

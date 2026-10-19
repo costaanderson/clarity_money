@@ -1,8 +1,8 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createEvent, deleteEvent, listEvents } from "@/features/agenda/lib/calendar.functions";
+import { createEvent, deleteEvent, listEvents } from "@/features/agenda/lib/calendar.server";
 import { getGoogleConnectionStatus } from "@/features/agenda/lib/google-auth.functions";
-import { listClients } from "@/features/clients/lib/clients.functions";
+import { listClients } from "@/features/clients/lib/clients.server";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";

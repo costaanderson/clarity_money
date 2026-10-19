@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { getCockpitOverview } from "@/features/cockpit/lib/cockpit.functions";
+import { getCockpitOverview } from "@/features/cockpit/lib/cockpit.server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -32,7 +32,7 @@ import {
   Line,
   Legend,
 } from "recharts";
-import { CLIENT_SOURCES } from "@/features/clients/lib/clients.functions";
+import { CLIENT_SOURCES } from "@/features/clients/lib/clients.types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const Route = (createLazyFileRoute as any)("/_authenticated/cockpit")({

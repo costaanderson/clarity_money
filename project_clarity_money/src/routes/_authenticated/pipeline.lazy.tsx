@@ -1,6 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listPipeline, moveClientStage, PIPELINE_STAGES, PIPELINE_STAGE_FINALIZADO, type PipelineStage } from "@/features/clients/lib/clients.functions";
+import { listPipeline, moveClientStage } from "@/features/pipeline/lib/pipeline.server";
+import { PIPELINE_STAGES, PIPELINE_STAGE_FINALIZADO, type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
 import { Card } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";

@@ -8,7 +8,7 @@ import {
   getStrategicPlanById,
   type StrategicPlanGoals,
   type StrategicPlan,
-} from "@/features/strategy/lib/strategy.functions";
+} from "@/features/strategy/lib/strategy.server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";

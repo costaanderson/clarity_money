@@ -1,8 +1,8 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
-import { getWeekDashboard } from "@/features/week-panel/lib/dashboard.functions";
-import { createTask, setTaskStatus } from "@/features/tasks/lib/tasks.functions";
+import { getWeekDashboard } from "@/features/week-panel/lib/dashboard.server";
+import { createTask, setTaskStatus } from "@/features/tasks/lib/tasks.server";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import {
   Users, CalendarDays, CheckSquare, AlertTriangle,

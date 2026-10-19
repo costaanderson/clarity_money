@@ -9,17 +9,17 @@ import {
   type ClientWithoutMeeting,
   type RadarRule,
   type DateAlert,
-} from "@/features/briefing/lib/briefing.functions";
+} from "@/features/briefing/lib/briefing.server";
 import {
   generateDonnaBriefing,
   getTodayDonnaBriefing,
-} from "@/features/briefing/lib/donna-ai.functions";
+} from "@/features/briefing/lib/donna-ai.server";
 import {
   createRule,
   deleteRule,
   runActivationRules,
   updateRule,
-} from "@/features/activation-rules/lib/rules.functions";
+} from "@/features/activation-rules/lib/rules.server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Skeleton } from "@/shared/components/ui/skeleton";

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clientSchema } from "../clients.functions";
+import { clientSchema } from "../clients.schemas";
 
 describe("clientSchema — pipeline_stage", () => {
   it("aceita payload mínimo sem pipeline_stage (undefined → DB default 'novo')", () => {

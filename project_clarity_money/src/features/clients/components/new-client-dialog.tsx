@@ -18,7 +18,9 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { useState } from "react";
-import { createClient as createClientFn, CLIENT_SOURCES, PIPELINE_STAGES, type ClientSource, type PipelineStage } from "@/features/clients/lib/clients.functions";
+import { createClient as createClientFn } from "@/features/clients/lib/clients.server";
+import { CLIENT_SOURCES, type ClientSource } from "@/features/clients/lib/clients.types";
+import { PIPELINE_STAGES, type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
 import { toast } from "sonner";
 
 type Category = { id: string; name: string; color: string };

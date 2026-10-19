@@ -1,7 +1,7 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { archiveClient, listClients, restoreClient } from "@/features/clients/lib/clients.functions";
-import { listCategories } from "@/features/settings/lib/categories.functions";
+import { archiveClient, listClients, restoreClient } from "@/features/clients/lib/clients.server";
+import { listCategories } from "@/features/settings/lib/categories.server";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Card, CardContent } from "@/shared/components/ui/card";

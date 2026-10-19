@@ -5,20 +5,19 @@ import {
   markContact,
   restoreClient,
   updateClient,
-  PIPELINE_STAGES,
-  type PipelineStage,
-  type ImportantDate,
-} from "@/features/clients/lib/clients.functions";
-import { createNote, deleteNote, listNotes } from "@/features/clients/lib/notes.functions";
+} from "@/features/clients/lib/clients.server";
+import { type ImportantDate } from "@/features/clients/lib/clients.schemas";
+import { PIPELINE_STAGES, type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
+import { createNote, deleteNote, listNotes } from "@/features/clients/lib/notes.server";
 import {
   createSignedUpload,
   deleteDocument,
   getDocumentUrl,
   listDocuments,
   registerDocument,
-} from "@/features/clients/lib/documents.functions";
+} from "@/features/clients/lib/documents.server";
 import { generateAI, listAIGenerations } from "@/features/ai/lib/ai.functions";
-import { listCategories } from "@/features/settings/lib/categories.functions";
+import { listCategories } from "@/features/settings/lib/categories.server";
 import { listClientDiagnostics } from "@/features/diagnostic/lib/diagnostics.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
