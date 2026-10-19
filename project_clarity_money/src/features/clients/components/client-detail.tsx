@@ -179,9 +179,12 @@ export function ClientDetail({ id }: { id: string }) {
                   Registrar contato
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="max-w-60">
+              <TooltipContent className="max-w-64">
                 <p className="text-xs">
-                  Marca hoje como data do último contato. Aparece abaixo do nome do cliente e é usado pela IA e pelas Regras de Ativação para identificar clientes inativos.
+                  Atualiza a data do último contato com este cliente para hoje. Essa data aparece abaixo do nome e é usada pela IA e pelas Regras de Ativação para identificar clientes inativos.
+                </p>
+                <p className="text-xs mt-1 text-muted-foreground">
+                  Para registrar o que foi discutido, adicione uma nota abaixo.
                 </p>
               </TooltipContent>
             </Tooltip>
