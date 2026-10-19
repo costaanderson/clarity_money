@@ -30,50 +30,90 @@ npm run dev
 
 ## Estrutura de pastas
 
+### Convenção de nomes em `lib/`
+
+Cada feature segue a mesma divisão por responsabilidade:
+
+| Arquivo | O que contém |
+|---|---|
+| `*.types.ts` | Constantes, enums e interfaces (sem dependências externas) |
+| `*.schemas.ts` | Schemas Zod de validação |
+| `*.logic.ts` | Funções puras (sem acesso a banco ou rede) |
+| `*.server.ts` | `createServerFn()` — funções que rodam no servidor |
+
 ```
 src/
-├── features/                  # Domínios de negócio
+├── features/                     # Domínios de negócio
 │   ├── clients/
-│   │   ├── components/        # client-detail, client-detail-sheet, new-client-dialog
-│   │   └── lib/               # clients.functions, notes.functions, documents.functions
-│   ├── pipeline/              # (usa lib do clients)
+│   │   ├── components/           # client-detail, client-detail-sheet, new-client-dialog
+│   │   └── lib/
+│   │       ├── clients.types.ts  # CLIENT_SOURCES, ClientSource
+│   │       ├── clients.schemas.ts# clientSchema, ImportantDate
+│   │       ├── clients.server.ts # listClients, getClient, createClient…
+│   │       ├── notes.server.ts   # listNotes, createNote, deleteNote
+│   │       └── documents.server.ts
+│   ├── pipeline/
+│   │   └── lib/
+│   │       ├── pipeline.types.ts # PIPELINE_STAGES, PipelineStage
+│   │       └── pipeline.server.ts# listPipeline, moveClientStage
 │   ├── tasks/
-│   │   ├── components/        # task-edit-sheet
-│   │   └── lib/               # tasks.functions
+│   │   ├── components/           # task-edit-sheet
+│   │   └── lib/
+│   │       ├── tasks.schemas.ts  # createTaskSchema, updateTaskSchema
+│   │       ├── tasks.logic.ts    # toIsoOrNull()
+│   │       └── tasks.server.ts   # listTasks, createTask, updateTask…
 │   ├── agenda/
-│   │   └── lib/               # calendar.functions
+│   │   └── lib/
+│   │       ├── calendar.schemas.ts
+│   │       └── calendar.server.ts
 │   ├── cockpit/
-│   │   └── lib/               # cockpit.functions (KPIs, intake tokens)
+│   │   └── lib/
+│   │       └── cockpit.server.ts # getCockpitOverview, intake tokens
 │   ├── week-panel/
-│   │   └── lib/               # dashboard.functions
+│   │   └── lib/
+│   │       ├── dashboard.logic.ts# getWeekRange()
+│   │       └── dashboard.server.ts
+│   ├── briefing/
+│   │   └── lib/
+│   │       ├── briefing.types.ts
+│   │       ├── briefing.logic.ts # daysUntilNextOccurrence()
+│   │       ├── briefing.server.ts# getDailyBriefing, getEngagementRadar…
+│   │       └── donna-ai.server.ts# getTodayDonnaBriefing, generateDonnaBriefing
+│   ├── strategy/
+│   │   └── lib/
+│   │       ├── strategy.types.ts
+│   │       └── strategy.server.ts
 │   ├── diagnostic/
-│   │   └── lib/               # diagnostico, diagnostics.functions
+│   │   └── lib/
 │   ├── ai/
-│   │   └── lib/               # ai.functions, extract-text
+│   │   └── lib/                  # call-ai, extract-text
 │   ├── settings/
-│   │   └── lib/               # categories.functions
+│   │   └── lib/
+│   │       └── categories.server.ts
 │   └── activation-rules/
-│       └── lib/               # rules.functions
+│       └── lib/
+│           ├── rules.schemas.ts
+│           └── rules.server.ts
 │
-├── shared/                    # Código compartilhado entre features
+├── shared/                       # Código compartilhado entre features
 │   ├── components/
-│   │   └── ui/                # shadcn/ui (Button, Card, Input…)
-│   ├── hooks/                 # use-mobile
-│   ├── lib/                   # error-reporting, utils
+│   │   └── ui/                   # shadcn/ui (Button, Card, Input…)
+│   ├── hooks/                    # use-mobile
+│   ├── lib/                      # error-reporting, utils
 │   ├── types/
 │   └── utils/
 │
 ├── integrations/
-│   └── supabase/              # client, types, auth middleware
+│   └── supabase/                 # client, types, auth middleware
 │
-├── routes/                    # TanStack file-based routes (wrappers finos)
+├── routes/                       # TanStack file-based routes (wrappers finos)
 │   ├── __root.tsx
 │   ├── auth.tsx / auth.lazy.tsx
-│   ├── diagnostico.tsx        # Wizard público de leads
-│   ├── api/public/            # Endpoints públicos (leads, diagnóstico)
-│   └── _authenticated/        # Rotas protegidas por auth
-│       ├── route.tsx          # Auth guard + layout com sidebar
-│       ├── index.lazy.tsx     # Painel da Semana
+│   ├── diagnostico.tsx           # Wizard público de leads
+│   ├── api/public/               # Endpoints públicos (leads, diagnóstico)
+│   └── _authenticated/           # Rotas protegidas por auth
+│       ├── route.tsx             # Auth guard + layout com sidebar
+│       ├── index.lazy.tsx        # Painel da Semana
 │       ├── clientes/
 │       ├── pipeline.lazy.tsx
 │       ├── cockpit.lazy.tsx
@@ -84,7 +124,24 @@ src/
 │       ├── estrategia.lazy.tsx
 │       └── configuracoes.lazy.tsx
 │
-└── lib/                       # Utilitários globais (utils.ts, error-capture…)
+└── lib/                          # Utilitários globais (utils.ts, error-capture…)
+```
+
+### Documentação do projeto
+
+```
+docs/
+├── PRD.md                        # Product Requirements Document
+├── table_clarity.md              # Estrutura das tabelas do banco
+├── transcricao_video_2026-08-07.md
+├── architecture/
+│   ├── clarity-money-architecture.html
+│   └── clarity-money.architecture.json
+├── design/
+│   ├── painel.txt                # Tokens do design system "Editorial Clarity"
+│   └── stitch-painel/            # Mockup gerado pelo Stitch
+└── prototypes/
+    └── donna-briefing.gs         # Protótipo Apps Script da Donna
 ```
 
 ---
