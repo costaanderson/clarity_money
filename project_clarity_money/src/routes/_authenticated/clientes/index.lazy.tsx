@@ -32,7 +32,7 @@ export const Route = (createLazyFileRoute as unknown as (p: string) => any)("/_a
 
 function ClientsPage() {
   const qc = useQueryClient();
-  const [status, setStatus] = useState<string>("ativo");
+  const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [openNew, setOpenNew] = useState(false);
