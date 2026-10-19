@@ -33,3 +33,6 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# Stitch AI design exports (local only)
+docs/design/stitch-*.md
