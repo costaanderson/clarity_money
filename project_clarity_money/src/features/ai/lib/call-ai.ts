@@ -49,6 +49,38 @@ export async function getCallableAiConfig(userId: string): Promise<UserAiConfig 
   };
 }
 
+// ─── Retry com backoff para erros transitórios (503, 529) ────────────────────
+
+const RETRYABLE_STATUSES = new Set([503, 529]);
+const MAX_RETRIES = 3;
+
+async function withRetry(fn: () => Promise<string>): Promise<string> {
+  let lastError: Error = new Error("Erro desconhecido");
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err as Error;
+      const status = (err as any)._status as number | undefined;
+      if (!status || !RETRYABLE_STATUSES.has(status) || attempt === MAX_RETRIES) break;
+      // Backoff: 2s, 4s, 8s
+      await new Promise((r) => setTimeout(r, 2_000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastError;
+}
+
+function makeAiError(status: number, text: string): Error {
+  if (status === 429) return new Error("Limite de requisições da IA. Tente em instantes.");
+  if (status === 401) return new Error("API key inválida. Verifique nas Configurações.");
+  if (RETRYABLE_STATUSES.has(status))
+    return Object.assign(
+      new Error("A IA está sobrecarregada no momento. Tente novamente em alguns segundos."),
+      { _status: status },
+    );
+  return new Error(`Falha na IA (${status}): ${text.slice(0, 300)}`);
+}
+
 // ─── Chamada unificada ────────────────────────────────────────────────────────
 
 export async function callAI(
@@ -68,7 +100,7 @@ export async function callAI(
   }
 
   if (provider === "claude") {
-    return callClaude(system, user, model, apiKey);
+    return withRetry(() => callClaude(system, user, model, apiKey));
   }
 
   // Gemini e OpenAI usam endpoint OpenAI-compatible
@@ -77,30 +109,29 @@ export async function callAI(
       ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
       : "https://api.openai.com/v1/chat/completions";
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
+  return withRetry(async () => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      throw makeAiError(res.status, await res.text());
+    }
+
+    const json = await res.json();
+    return json.choices?.[0]?.message?.content ?? "";
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 429) throw new Error("Limite de requisições da IA. Tente em instantes.");
-    if (res.status === 401) throw new Error("API key inválida. Verifique nas Configurações.");
-    throw new Error(`Falha na IA (${res.status}): ${text.slice(0, 300)}`);
-  }
-
-  const json = await res.json();
-  return json.choices?.[0]?.message?.content ?? "";
 }
 
 async function callClaude(
@@ -125,10 +156,7 @@ async function callClaude(
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 429) throw new Error("Limite de requisições da IA. Tente em instantes.");
-    if (res.status === 401) throw new Error("API key inválida. Verifique nas Configurações.");
-    throw new Error(`Falha na IA (${res.status}): ${text.slice(0, 300)}`);
+    throw makeAiError(res.status, await res.text());
   }
 
   const json = await res.json();
