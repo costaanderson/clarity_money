@@ -8,6 +8,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Trash2, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/parse-error";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
   "/_authenticated/categorias",
@@ -28,7 +29,7 @@ function CategoriesPage() {
       setName("");
       toast.success("Categoria criada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
   const del = useMutation({
     mutationFn: (id: string) => deleteCategory({ data: { id } }),

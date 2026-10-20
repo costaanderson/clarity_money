@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { parseError } from "@/lib/parse-error";
 import {
   Dialog,
   DialogContent,
@@ -78,7 +79,7 @@ export function NewClientDialog({
       setCampaign("");
       setPipelineStage("novo");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   return (

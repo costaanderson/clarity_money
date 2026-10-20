@@ -7,6 +7,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { toast } from "sonner";
+import { parseError } from "@/lib/parse-error";
 import { Compass } from "lucide-react";
 
 export const Route = createLazyFileRoute("/auth")({
@@ -31,7 +32,7 @@ function AuthPage() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(parseError(error));
     navigate({ to: "/" });
   }
 
@@ -44,7 +45,7 @@ function AuthPage() {
       options: { data: { name }, emailRedirectTo: window.location.origin },
     });
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(parseError(error));
     toast.success("Conta criada. Você já pode entrar.");
   }
 

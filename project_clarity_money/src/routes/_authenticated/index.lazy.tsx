@@ -1,5 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { parseError } from "@/lib/parse-error";
 import { useState, useMemo, useEffect } from "react";
 import { getWeekDashboard } from "@/features/week-panel/lib/dashboard.server";
 import { createTask, setTaskStatus } from "@/features/tasks/lib/tasks.server";
@@ -158,7 +159,7 @@ function DashboardPage() {
       setNewTask("");
       toast.success("Tarefa adicionada");
     },
-    onError: (e: Error) => toast.error(e.message || "Erro ao adicionar tarefa"),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const toggleTask = useMutation({

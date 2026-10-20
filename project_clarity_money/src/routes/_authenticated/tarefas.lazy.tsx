@@ -20,6 +20,7 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/parse-error";
 import { TaskEditSheet } from "@/features/tasks/components/task-edit-sheet";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
@@ -71,7 +72,7 @@ function TasksPage() {
       setClientId("none");
       toast.success("Tarefa criada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
   const toggle = useMutation({
     mutationFn: (v: { id: string; status: "pendente" | "feito" }) => setTaskStatus({ data: v }),

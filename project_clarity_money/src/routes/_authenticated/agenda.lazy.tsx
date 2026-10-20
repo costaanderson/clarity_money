@@ -20,6 +20,7 @@ import { Switch } from "@/shared/components/ui/switch";
 import { CalendarClock, Trash2, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/parse-error";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
   "/_authenticated/agenda",
@@ -87,7 +88,7 @@ function AgendaPage() {
         toast.success("Compromisso criado.");
       }
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
   const del = useMutation({
     mutationFn: (id: string) => deleteEvent({ data: { id } }),

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { parseError } from "@/lib/parse-error";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { updateTask } from "@/features/tasks/lib/tasks.server";
@@ -82,7 +83,7 @@ export function TaskEditSheet({
       toast.success("Tarefa atualizada");
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   return (

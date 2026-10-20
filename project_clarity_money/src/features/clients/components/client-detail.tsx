@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { parseError } from "@/lib/parse-error";
 import {
   archiveClient,
   getClient,
@@ -102,7 +103,7 @@ export function ClientDetail({ id }: { id: string }) {
       qc.invalidateQueries({ queryKey: ["pipeline"] });
       toast.success("Categoria atualizada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const c = clientQ.data;
@@ -254,7 +255,7 @@ function NotesPanel({ clientId }: { clientId: string }) {
       qc.invalidateQueries({ queryKey: ["client", clientId] });
       toast.success("Registrado");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
   const del = useMutation({
     mutationFn: (id: string) => deleteNote({ data: { id } }),
@@ -754,7 +755,7 @@ function EditPanel({
       qc.invalidateQueries({ queryKey: ["pipeline"] });
       toast.success("Alterações salvas");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   return (

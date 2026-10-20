@@ -4,6 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle, HardDrive, FolderOpen, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { parseError } from "@/lib/parse-error";
 import {
   listIntakeTokens,
   createIntakeToken,
@@ -100,7 +101,7 @@ function GoogleCalendarCard() {
       qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
       toast.success("Google Agenda desconectado.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   async function handleConnect() {
@@ -173,7 +174,7 @@ function GoogleDriveCard() {
       qc.invalidateQueries({ queryKey: ["google-drive-status"] });
       toast.success("Google Drive desconectado.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const saveFolder = useMutation({
@@ -183,7 +184,7 @@ function GoogleDriveCard() {
       setFolderUrl("");
       toast.success(`Pasta "${r.folderName}" configurada.`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   async function handleConnect() {
@@ -320,7 +321,7 @@ function AIConfigCard() {
       setApiKey("");
       toast.success(`IA configurada: ${AI_PROVIDER_LABELS[r.provider as AiProvider]} — ${r.model}`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const clear = useMutation({
@@ -330,7 +331,7 @@ function AIConfigCard() {
       setEditing(false);
       toast.success("Configuração de IA removida. Usando chave padrão do app.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const status = statusQ.data;
@@ -495,7 +496,7 @@ function IntakeTokensCard() {
       qc.invalidateQueries({ queryKey: ["intake-tokens"] });
       toast.success("Token gerado. Copie agora — só será exibido uma vez.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const revoke = useMutation({

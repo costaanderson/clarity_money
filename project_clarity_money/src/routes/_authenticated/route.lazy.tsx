@@ -1,6 +1,7 @@
 import { createLazyFileRoute, getRouteApi, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Compass, Users, LayoutDashboard, Calendar, CheckSquare, Tag, Settings, LogOut, KanbanSquare, Gauge, Map, Menu, X, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
@@ -40,6 +41,18 @@ function AuthedLayout() {
       if (data?.name) setProfileName(data.name);
     });
   }, [user.id]);
+
+  // Redireciona para /auth quando a sessão expira automaticamente
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        queryClient.clear();
+        toast.error("Sessão expirada. Faça login novamente.");
+        navigate({ to: "/auth", replace: true });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate, queryClient]);
 
   async function signOut() {
     await queryClient.cancelQueries();

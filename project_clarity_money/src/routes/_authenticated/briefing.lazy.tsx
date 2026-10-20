@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { parseError } from "@/lib/parse-error";
 
 export const Route = (createLazyFileRoute as unknown as (p: string) => any)(
   "/_authenticated/briefing",
@@ -187,13 +188,13 @@ function BriefingPage() {
       setSheetOpen(false);
       toast.success("Regra criada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const toggleRule = useMutation({
     mutationFn: (v: { id: string; active: boolean }) => updateRule({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["engagement-radar"] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const delRule = useMutation({
@@ -202,7 +203,7 @@ function BriefingPage() {
       qc.invalidateQueries({ queryKey: ["engagement-radar"] });
       toast.success("Regra removida");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const runRules = useMutation({
@@ -213,7 +214,7 @@ function BriefingPage() {
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success(`${r.created} tarefa(s) de ativação criada(s).`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const b = briefingQ.data;

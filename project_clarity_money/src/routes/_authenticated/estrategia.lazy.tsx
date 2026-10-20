@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
 import { toast } from "sonner";
+import { parseError } from "@/lib/parse-error";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const Route = (createLazyFileRoute as any)("/_authenticated/estrategia")({
@@ -212,7 +213,7 @@ function PlanForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
     mutationFn: () =>
       generateStrategicPlan({ data: { quarter, periodStart, periodEnd, goals } }),
     onSuccess,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(parseError(e)),
   });
 
   const canSubmit =
