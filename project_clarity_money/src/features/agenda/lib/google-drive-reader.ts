@@ -30,13 +30,17 @@ const SUPPORTED_MIME_TYPES = [
   "text/markdown",
 ];
 
-async function listFilesInFolder(
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+type DriveItem = DriveFile & { mimeType: string };
+
+async function listItemsInFolder(
   token: string,
   folderId: string,
-): Promise<DriveFile[]> {
+): Promise<DriveItem[]> {
   const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
   const fields = encodeURIComponent("files(id,name,mimeType,modifiedTime)");
-  const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&orderBy=modifiedTime+desc&pageSize=${MAX_FILES}`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&orderBy=modifiedTime+desc&pageSize=100`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
@@ -48,9 +52,44 @@ async function listFilesInFolder(
   }
 
   const json = await res.json();
-  return (json.files ?? []).filter((f: DriveFile) =>
-    SUPPORTED_MIME_TYPES.includes(f.mimeType),
-  );
+  return json.files ?? [];
+}
+
+/**
+ * Coleta arquivos suportados a partir de uma pasta, percorrendo subpastas
+ * até a profundidade indicada (maxDepth).
+ * Estrutura esperada: Clientes_ativos → {Nome do Cliente} → transcrição → arquivos
+ * O pathPrefix acumula o caminho (ex: "Anderson / transcrição") para identificar
+ * de qual cliente é cada arquivo no prompt da Donna.
+ */
+async function collectFiles(
+  token: string,
+  folderId: string,
+  maxDepth: number,
+  pathPrefix = "",
+): Promise<DriveFile[]> {
+  const items = await listItemsInFolder(token, folderId);
+  const files: DriveFile[] = [];
+
+  for (const item of items) {
+    if (SUPPORTED_MIME_TYPES.includes(item.mimeType)) {
+      // Inclui o caminho no nome para que a Donna saiba de qual cliente é
+      files.push({
+        ...item,
+        name: pathPrefix ? `${pathPrefix} / ${item.name}` : item.name,
+      });
+    } else if (item.mimeType === FOLDER_MIME && maxDepth > 0) {
+      try {
+        const nestedPrefix = pathPrefix ? `${pathPrefix} / ${item.name}` : item.name;
+        const nested = await collectFiles(token, item.id, maxDepth - 1, nestedPrefix);
+        files.push(...nested);
+      } catch {
+        // ignora subpasta inacessível
+      }
+    }
+  }
+
+  return files;
 }
 
 async function readFileContent(
@@ -106,7 +145,8 @@ export async function readDriveFolder(userId: string): Promise<DriveFileContent[
 
   let files: DriveFile[];
   try {
-    files = await listFilesInFolder(token, (row as any).folder_id);
+    // maxDepth=3 cobre: pasta raiz → [cliente] → Transcrições → arquivos
+    files = await collectFiles(token, (row as any).folder_id, 3);
   } catch (err) {
     console.error("[readDriveFolder] list error:", err);
     return [];

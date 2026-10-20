@@ -65,6 +65,7 @@ export function NewClientDialog({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["cockpit"] });
+      qc.invalidateQueries({ queryKey: ["pipeline"] });
       toast.success("Cliente cadastrado");
       onOpenChange(false);
       setName("");
