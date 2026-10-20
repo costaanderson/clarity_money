@@ -177,7 +177,6 @@ function BriefingPage() {
   const generateBriefing = useMutation({
     mutationFn: () => generateDonnaBriefing(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["donna-briefing-today"] }),
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const addRule = useMutation({
@@ -292,6 +291,7 @@ function BriefingPage() {
         briefingQ={donnaBriefingQ}
         onGenerate={() => generateBriefing.mutate()}
         isGenerating={generateBriefing.isPending}
+        error={generateBriefing.error as Error | null}
       />
 
       {/* SEÇÃO A — Engajamento */}
@@ -515,10 +515,12 @@ function DonnaBriefingCard({
   briefingQ,
   onGenerate,
   isGenerating,
+  error,
 }: {
   briefingQ: ReturnType<typeof useQuery<{ content: string; generatedAt: string } | null>>;
   onGenerate: () => void;
   isGenerating: boolean;
+  error: Error | null;
 }) {
   const briefing = briefingQ.data;
   const isLoading = briefingQ.isLoading;
@@ -532,7 +534,7 @@ function DonnaBriefingCard({
             Briefing Donna · IA
           </CardTitle>
           <div className="flex items-center gap-2">
-            {briefing && (
+            {briefing && !error && (
               <span className="text-xs text-muted-foreground">
                 Gerado às {new Date(briefing.generatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
               </span>
@@ -560,7 +562,23 @@ function DonnaBriefingCard({
       <CardContent>
         {isLoading && <Skeleton className="h-20 w-full" />}
 
-        {!isLoading && !briefing && !isGenerating && (
+        {!isLoading && error && !isGenerating && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium text-destructive">Não foi possível gerar o briefing</p>
+                <p className="text-xs text-muted-foreground">{error.message}</p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 w-full" onClick={onGenerate}>
+              <RefreshCw className="h-3 w-3" />
+              Tentar novamente
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !briefing && !isGenerating && !error && (
           <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
             <Sparkles className="h-7 w-7 mx-auto text-amber-400" />
             <div>
@@ -582,10 +600,8 @@ function DonnaBriefingCard({
           </div>
         )}
 
-        {!isLoading && briefing && !isGenerating && (
-          <div
-            className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-foreground/90 bg-muted/30 rounded-lg p-4 max-h-[600px] overflow-y-auto"
-          >
+        {!isLoading && briefing && !isGenerating && !error && (
+          <div className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-foreground/90 bg-muted/30 rounded-lg p-4 max-h-[600px] overflow-y-auto">
             {briefing.content}
           </div>
         )}
