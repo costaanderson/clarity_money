@@ -136,14 +136,15 @@ function ClientsPage() {
                   <Badge variant={c.status === "ativo" ? "default" : c.status === "lead" ? "secondary" : "outline"}>
                     {c.status}
                   </Badge>
-                  {c.categories && (
+                  {(c.client_categories ?? []).map((cc: any) => cc.categories).filter(Boolean).map((cat: any) => (
                     <span
+                      key={cat.id}
                       className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border"
-                      style={{ borderColor: c.categories.color, color: c.categories.color }}
+                      style={{ borderColor: cat.color, color: cat.color }}
                     >
-                      {c.categories.name}
+                      {cat.name}
                     </span>
-                  )}
+                  ))}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
                   {[c.email, c.phone].filter(Boolean).join(" · ") || "Sem contato registrado"}

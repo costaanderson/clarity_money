@@ -155,14 +155,15 @@ function PipelinePage() {
                       >
                         {c.status}
                       </Badge>
-                      {c.categories && (
+                      {(c.client_categories ?? []).map((cc: any) => cc.categories).filter(Boolean).map((cat: any) => (
                         <span
+                          key={cat.id}
                           className="inline-flex items-center text-[10px] px-1.5 py-0 rounded-full border"
-                          style={{ borderColor: c.categories.color, color: c.categories.color }}
+                          style={{ borderColor: cat.color, color: cat.color }}
                         >
-                          {c.categories.name}
+                          {cat.name}
                         </span>
-                      )}
+                      ))}
                     </div>
                     {(() => {
                       const meta = SOURCE_META[c.source ?? "outro"] ?? SOURCE_META.outro;

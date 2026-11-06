@@ -16,7 +16,8 @@ export const clientSchema = z.object({
   phone: z.string().max(50).optional().or(z.literal("")),
   document: z.string().max(50).optional().or(z.literal("")),
   status: z.enum(["lead", "ativo", "arquivado"]).default("lead"),
-  category_id: z.string().uuid().nullable().optional(),
+  category_id: z.string().uuid().nullable().optional(), // deprecated — usar category_ids
+  category_ids: z.array(z.string().uuid()).optional(),
   source: z
     .enum(["instagram", "google_ads", "landing_page", "indicacao", "outro"])
     .default("outro"),

@@ -174,6 +174,45 @@ export type Database = {
         }
         Relationships: []
       }
+      client_categories: {
+        Row: {
+          id: string
+          client_id: string
+          category_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          category_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          category_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_categories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_diagnostics: {
         Row: {
           answers: Json

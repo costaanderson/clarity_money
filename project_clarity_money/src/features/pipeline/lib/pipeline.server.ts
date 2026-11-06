@@ -20,7 +20,7 @@ export const listPipeline = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("clients")
       .select(
-        "id,name,type,status,pipeline_stage,pipeline_order,last_contact_at,finalized_at,category_id,source,source_campaign,categories(id,name,color)",
+        "id,name,type,status,pipeline_stage,pipeline_order,last_contact_at,finalized_at,source,source_campaign,client_categories(category_id,categories(id,name,color))",
       )
       .neq("status", "arquivado")
       .order("pipeline_order", { ascending: true })

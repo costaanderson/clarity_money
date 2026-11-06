@@ -6,7 +6,9 @@ import {
   markContact,
   restoreClient,
   updateClient,
+  updateClientCategories,
 } from "@/features/clients/lib/clients.server";
+import { CategoryMultiSelect } from "@/features/clients/components/category-multi-select";
 import { type ImportantDate } from "@/features/clients/lib/clients.schemas";
 import { PIPELINE_STAGES, type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
 import { createNote, deleteNote, listNotes } from "@/features/clients/lib/notes.server";
@@ -94,14 +96,14 @@ export function ClientDetail({ id }: { id: string }) {
       toast.success("Cliente reativado");
     },
   });
-  const updateCategory = useMutation({
-    mutationFn: (categoryId: string | null) =>
-      updateClient({ data: { id, category_id: categoryId } }),
+  const updateCategories = useMutation({
+    mutationFn: (categoryIds: string[]) =>
+      updateClientCategories({ data: { clientId: id, categoryIds } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["client", id] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["pipeline"] });
-      toast.success("Categoria atualizada");
+      toast.success("Categorias atualizadas");
     },
     onError: (e: Error) => toast.error(parseError(e)),
   });
@@ -128,28 +130,21 @@ export function ClientDetail({ id }: { id: string }) {
               >
                 {c.status}
               </Badge>
-              {c.categories && (
+              {(c.client_categories ?? []).map((cc: any) => cc.categories).filter(Boolean).map((cat: any) => (
                 <span
+                  key={cat.id}
                   className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full border font-medium"
-                  style={{ borderColor: c.categories.color, color: c.categories.color }}
+                  style={{ borderColor: cat.color, color: cat.color }}
                 >
-                  {c.categories.name}
+                  {cat.name}
                 </span>
-              )}
-              <Select
-                value={c.category_id ?? "none"}
-                onValueChange={(v) => updateCategory.mutate(v === "none" ? null : v)}
-              >
-                <SelectTrigger className="h-6 px-2 py-0 text-xs rounded-full w-auto gap-1 border-dashed text-muted-foreground">
-                  <SelectValue placeholder={c.categories ? "Trocar tag" : "+ tag"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sem categoria</SelectItem>
-                  {(catsQ.data ?? []).map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              ))}
+              <CategoryMultiSelect
+                categories={catsQ.data ?? []}
+                selectedIds={(c.client_categories ?? []).map((cc: any) => cc.category_id)}
+                onChange={(ids) => updateCategories.mutate(ids)}
+                placeholder="+ tag"
+              />
             </div>
             <div className="text-sm text-muted-foreground mt-3 flex items-center gap-4 flex-wrap">
               {c.email && (
@@ -721,7 +716,7 @@ function EditPanel({
     document: client.document ?? "",
     type: client.type,
     status: client.status,
-    category_id: client.category_id ?? "none",
+    category_ids: (client.client_categories ?? []).map((cc: any) => cc.category_id),
     pipeline_stage: (client.pipeline_stage ?? "novo") as PipelineStage,
     source: (client.source ?? "outro") as "instagram" | "google_ads" | "landing_page" | "indicacao" | "outro",
     source_campaign: client.source_campaign ?? "",
@@ -731,8 +726,8 @@ function EditPanel({
   });
 
   const save = useMutation({
-    mutationFn: () =>
-      updateClient({
+    mutationFn: async () => {
+      await updateClient({
         data: {
           id: client.id,
           name: form.name,
@@ -741,14 +736,17 @@ function EditPanel({
           document: form.document,
           type: form.type,
           status: form.status,
-          category_id: form.category_id === "none" ? null : form.category_id,
           pipeline_stage: form.pipeline_stage,
           source: form.source,
           source_campaign: form.source_campaign,
           birthday: form.birthday || null,
           important_dates: form.important_dates.length > 0 ? form.important_dates : null,
         },
-      }),
+      });
+      await updateClientCategories({
+        data: { clientId: client.id, categoryIds: form.category_ids },
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["client", client.id] });
       qc.invalidateQueries({ queryKey: ["clients"] });
@@ -806,16 +804,13 @@ function EditPanel({
             <Input value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} />
           </div>
           <div>
-            <Label>Categoria</Label>
-            <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem categoria</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Categorias</Label>
+            <CategoryMultiSelect
+              categories={categories}
+              selectedIds={form.category_ids}
+              onChange={(ids) => setForm({ ...form, category_ids: ids })}
+              placeholder="Sem categoria"
+            />
           </div>
         </div>
         <div className="grid sm:grid-cols-2 gap-3">

@@ -22,6 +22,7 @@ import { useState } from "react";
 import { createClient as createClientFn } from "@/features/clients/lib/clients.server";
 import { CLIENT_SOURCES, type ClientSource } from "@/features/clients/lib/clients.types";
 import { PIPELINE_STAGES, type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
+import { CategoryMultiSelect } from "@/features/clients/components/category-multi-select";
 import { toast } from "sonner";
 
 type Category = { id: string; name: string; color: string };
@@ -42,7 +43,7 @@ export function NewClientDialog({
   const [phone, setPhone] = useState("");
   const [document, setDocument] = useState("");
   const [status, setStatus] = useState<"lead" | "ativo" | "arquivado">("lead");
-  const [categoryId, setCategoryId] = useState<string>("none");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [source, setSource] = useState<ClientSource>("outro");
   const [campaign, setCampaign] = useState("");
   const [pipelineStage, setPipelineStage] = useState<PipelineStage>("novo");
@@ -57,7 +58,7 @@ export function NewClientDialog({
           phone,
           document,
           status,
-          category_id: categoryId === "none" ? null : categoryId,
+          category_ids: categoryIds,
           source,
           source_campaign: campaign,
           pipeline_stage: pipelineStage,
@@ -74,7 +75,7 @@ export function NewClientDialog({
       setPhone("");
       setDocument("");
       setStatus("lead");
-      setCategoryId("none");
+      setCategoryIds([]);
       setSource("outro");
       setCampaign("");
       setPipelineStage("novo");
@@ -140,16 +141,13 @@ export function NewClientDialog({
               <Input value={document} onChange={(e) => setDocument(e.target.value)} />
             </div>
             <div>
-              <Label>Categoria</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger><SelectValue placeholder="Sem categoria" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sem categoria</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Categorias</Label>
+              <CategoryMultiSelect
+                categories={categories}
+                selectedIds={categoryIds}
+                onChange={setCategoryIds}
+                placeholder="Sem categoria"
+              />
             </div>
           </div>
           <div>

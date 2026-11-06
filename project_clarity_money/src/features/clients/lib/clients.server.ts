@@ -10,14 +10,21 @@ export const listClients = createServerFn({ method: "GET" })
       input ?? {},
   )
   .handler(async ({ data, context }) => {
+    const hasCategory = !!data.categoryId;
+    const selectStr = hasCategory
+      ? "*, client_categories!inner(category_id, categories(id,name,color))"
+      : "*, client_categories(category_id, categories(id,name,color))";
+
     let q = context.supabase
       .from("clients")
-      .select("*, categories(id,name,color)")
+      .select(selectStr)
       .order("updated_at", { ascending: false });
+
     if (data.status && data.status !== "all")
       q = q.eq("status", data.status as "lead" | "ativo" | "arquivado");
-    if (data.categoryId) q = q.eq("category_id", data.categoryId);
+    if (data.categoryId) q = q.eq("client_categories.category_id", data.categoryId);
     if (data.search) q = q.ilike("name", `%${data.search}%`);
+
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows ?? [];
@@ -29,7 +36,7 @@ export const getClient = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
       .from("clients")
-      .select("*, categories(id,name,color)")
+      .select("*, client_categories(category_id, categories(id,name,color))")
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -40,15 +47,16 @@ export const createClient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => clientSchema.parse(input))
   .handler(async ({ data, context }) => {
+    const { category_ids, category_id: _deprecated, ...clientData } = data;
     const payload = {
-      ...data,
-      email: data.email || null,
-      phone: data.phone || null,
-      document: data.document || null,
-      category_id: data.category_id || null,
-      source_campaign: data.source_campaign || null,
-      birthday: data.birthday || null,
-      important_dates: data.important_dates ?? null,
+      ...clientData,
+      email: clientData.email || null,
+      phone: clientData.phone || null,
+      document: clientData.document || null,
+      category_id: null,
+      source_campaign: clientData.source_campaign || null,
+      birthday: clientData.birthday || null,
+      important_dates: clientData.important_dates ?? null,
       user_id: context.userId,
     };
     const { data: row, error } = await context.supabase
@@ -57,6 +65,17 @@ export const createClient = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    if (category_ids && category_ids.length > 0) {
+      await context.supabase.from("client_categories").insert(
+        category_ids.map((cid) => ({
+          client_id: row.id,
+          category_id: cid,
+          user_id: context.userId,
+        })),
+      );
+    }
+
     return row;
   });
 
@@ -66,7 +85,7 @@ export const updateClient = createServerFn({ method: "POST" })
     clientSchema.partial().extend({ id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { id, ...rest } = data;
+    const { id, category_ids, category_id: _deprecated, ...rest } = data;
     const { data: row, error } = await context.supabase
       .from("clients")
       .update(rest)
@@ -75,6 +94,33 @@ export const updateClient = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     return row;
+  });
+
+export const updateClientCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({ clientId: z.string().uuid(), categoryIds: z.array(z.string().uuid()) })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await context.supabase
+      .from("client_categories")
+      .delete()
+      .eq("client_id", data.clientId);
+
+    if (data.categoryIds.length > 0) {
+      const { error } = await context.supabase.from("client_categories").insert(
+        data.categoryIds.map((cid) => ({
+          client_id: data.clientId,
+          category_id: cid,
+          user_id: context.userId,
+        })),
+      );
+      if (error) throw new Error(error.message);
+    }
+
+    return { ok: true };
   });
 
 export const archiveClient = createServerFn({ method: "POST" })
