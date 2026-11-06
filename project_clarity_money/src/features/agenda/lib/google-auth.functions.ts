@@ -245,7 +245,12 @@ async function getValidToken(
       }),
     });
 
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      // Refresh falhou — limpa a linha stale para que o status mostre "desconectado"
+      // em vez de ficar aparecendo conectado sem retornar eventos
+      await (supabaseAdmin as any).from(table).delete().eq("user_id", userId);
+      return null;
+    }
 
     const newTokens = await resp.json();
     const newExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000).toISOString();
@@ -257,6 +262,8 @@ async function getValidToken(
 
     return newTokens.access_token;
   } catch {
+    // Em caso de erro de rede, também limpa para forçar reconexão
+    await (supabaseAdmin as any).from(table).delete().eq("user_id", userId);
     return null;
   }
 }

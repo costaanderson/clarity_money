@@ -6,9 +6,9 @@
 
 import { extractText } from "@/features/ai/lib/extract-text";
 
-const MAX_FILES = 15;
-const MAX_CHARS_PER_FILE = 3_000;
-const MAX_CHARS_TOTAL = 18_000;
+const MAX_FILES = 30;
+const MAX_CHARS_PER_FILE = 5_000;
+const MAX_CHARS_TOTAL = 40_000;
 
 type DriveFile = {
   id: string;
