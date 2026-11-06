@@ -378,10 +378,13 @@ function StagesSettingsSheet({
   const [editingLabel, setEditingLabel] = useState("");
   const [localStages, setLocalStages] = useState<PipelineStageRow[]>(stages);
 
-  // Sincroniza estado local quando o servidor retorna nova ordem
+  // Sincroniza estado local com o servidor, mas não enquanto uma mutation está pendente
+  // (evita que o refetch reverta a ordem antes do servidor confirmar)
   useEffect(() => {
-    setLocalStages(stages);
-  }, [stages]);
+    if (!reorder.isPending) {
+      setLocalStages(stages);
+    }
+  }, [stages, reorder.isPending]);
 
   const addStage = useMutation({
     mutationFn: () => createPipelineStage({ data: { label: newLabel.trim(), is_won: false } }),
@@ -464,14 +467,14 @@ function StagesSettingsSheet({
               <div className="flex flex-col gap-0.5">
                 <button
                   onClick={() => moveUp(idx)}
-                  disabled={idx === 0}
+                  disabled={idx === 0 || reorder.isPending}
                   className="text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                 >
                   <ChevronUp className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => moveDown(idx)}
-                  disabled={idx === localStages.length - 1}
+                  disabled={idx === localStages.length - 1 || reorder.isPending}
                   className="text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                 >
                   <ChevronDown className="h-3.5 w-3.5" />
