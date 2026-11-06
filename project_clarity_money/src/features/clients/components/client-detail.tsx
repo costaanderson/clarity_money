@@ -10,7 +10,8 @@ import {
 } from "@/features/clients/lib/clients.server";
 import { CategoryMultiSelect } from "@/features/clients/components/category-multi-select";
 import { type ImportantDate } from "@/features/clients/lib/clients.schemas";
-import { PIPELINE_STAGES, type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
+import { type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
+import { listPipelineStages } from "@/features/pipeline/lib/pipeline.server";
 import { createNote, deleteNote, listNotes } from "@/features/clients/lib/notes.server";
 import {
   createSignedUpload,
@@ -68,6 +69,7 @@ export function ClientDetail({ id }: { id: string }) {
 
   const clientQ = useQuery({ queryKey: ["client", id], queryFn: () => getClient({ data: { id } }) });
   const catsQ = useQuery({ queryKey: ["categories"], queryFn: () => listCategories() });
+  const stagesQ = useQuery({ queryKey: ["pipeline-stages"], queryFn: () => listPipelineStages() });
 
   const markC = useMutation({
     mutationFn: () => markContact({ data: { id } }),
@@ -220,7 +222,7 @@ export function ClientDetail({ id }: { id: string }) {
           })}
         </TabsList>
 
-        <TabsContent value="dados" className="mt-6"><EditPanel client={c} categories={catsQ.data ?? []} /></TabsContent>
+        <TabsContent value="dados" className="mt-6"><EditPanel client={c} categories={catsQ.data ?? []} stages={stagesQ.data ?? []} /></TabsContent>
         <TabsContent value="notas" className="mt-6"><NotesPanel clientId={id} /></TabsContent>
         <TabsContent value="documentos" className="mt-6"><DocumentsPanel clientId={id} /></TabsContent>
         <TabsContent value="diagnostico" className="mt-6"><DiagnosticPanel clientId={id} /></TabsContent>
@@ -704,9 +706,11 @@ function AIPanel({ clientId }: { clientId: string }) {
 function EditPanel({
   client,
   categories,
+  stages,
 }: {
   client: NonNullable<Awaited<ReturnType<typeof getClient>>>;
   categories: { id: string; name: string; color: string }[];
+  stages: { id: string; label: string; slug: string }[];
 }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
@@ -822,8 +826,8 @@ function EditPanel({
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {PIPELINE_STAGES.map((s) => (
-                  <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                {stages.map((s) => (
+                  <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -265,7 +265,7 @@ export type Database = {
           changed_at: string
           client_id: string
           id: string
-          stage: Database["public"]["Enums"]["pipeline_stage"]
+          stage: string
           status: string
           user_id: string
         }
@@ -273,7 +273,7 @@ export type Database = {
           changed_at?: string
           client_id: string
           id?: string
-          stage: Database["public"]["Enums"]["pipeline_stage"]
+          stage: string
           status: string
           user_id: string
         }
@@ -281,7 +281,7 @@ export type Database = {
           changed_at?: string
           client_id?: string
           id?: string
-          stage?: Database["public"]["Enums"]["pipeline_stage"]
+          stage?: string
           status?: string
           user_id?: string
         }
@@ -311,7 +311,7 @@ export type Database = {
           next_action_at: string | null
           phone: string | null
           pipeline_order: number
-          pipeline_stage: Database["public"]["Enums"]["pipeline_stage"]
+          pipeline_stage: string
           referrer: string | null
           source: Database["public"]["Enums"]["client_source"]
           source_campaign: string | null
@@ -338,7 +338,7 @@ export type Database = {
           next_action_at?: string | null
           phone?: string | null
           pipeline_order?: number
-          pipeline_stage?: Database["public"]["Enums"]["pipeline_stage"]
+          pipeline_stage?: string
           referrer?: string | null
           source?: Database["public"]["Enums"]["client_source"]
           source_campaign?: string | null
@@ -365,7 +365,7 @@ export type Database = {
           next_action_at?: string | null
           phone?: string | null
           pipeline_order?: number
-          pipeline_stage?: Database["public"]["Enums"]["pipeline_stage"]
+          pipeline_stage?: string
           referrer?: string | null
           source?: Database["public"]["Enums"]["client_source"]
           source_campaign?: string | null
@@ -558,6 +558,36 @@ export type Database = {
           },
         ]
       }
+      pipeline_stages: {
+        Row: {
+          created_at: string
+          id: string
+          is_won: boolean
+          label: string
+          position: number
+          slug: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_won?: boolean
+          label: string
+          position?: number
+          slug: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_won?: boolean
+          label?: string
+          position?: number
+          slug?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -650,15 +680,6 @@ export type Database = {
       client_status: "lead" | "ativo" | "arquivado"
       client_type: "PF" | "PJ"
       note_kind: "nota" | "contexto"
-      pipeline_stage:
-        | "novo"
-        | "primeiro_contato"
-        | "reuniao_agendada"
-        | "reuniao_realizada"
-        | "fechamento"
-        | "contrato_enviado"
-        | "em_andamento"
-        | "finalizado"
       rule_action: "task" | "email" | "ambos"
       task_source: "manual" | "regra_ativacao"
       task_status: "pendente" | "feito" | "cancelado"
@@ -800,16 +821,6 @@ export const Constants = {
       client_status: ["lead", "ativo", "arquivado"],
       client_type: ["PF", "PJ"],
       note_kind: ["nota", "contexto"],
-      pipeline_stage: [
-        "novo",
-        "primeiro_contato",
-        "reuniao_agendada",
-        "reuniao_realizada",
-        "fechamento",
-        "contrato_enviado",
-        "em_andamento",
-        "finalizado",
-      ],
       rule_action: ["task", "email", "ambos"],
       task_source: ["manual", "regra_ativacao"],
       task_status: ["pendente", "feito", "cancelado"],

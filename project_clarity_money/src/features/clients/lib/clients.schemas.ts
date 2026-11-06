@@ -22,17 +22,7 @@ export const clientSchema = z.object({
     .enum(["instagram", "google_ads", "landing_page", "indicacao", "outro"])
     .default("outro"),
   source_campaign: z.string().max(120).optional().or(z.literal("")),
-  pipeline_stage: z
-    .enum([
-      "novo",
-      "primeiro_contato",
-      "reuniao_agendada",
-      "reuniao_realizada",
-      "fechamento",
-      "contrato_enviado",
-      "em_andamento",
-    ])
-    .optional(),
+  pipeline_stage: z.string().min(1).max(80).optional(),
   birthday: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)

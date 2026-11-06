@@ -2,6 +2,8 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { archiveClient, listClients, restoreClient } from "@/features/clients/lib/clients.server";
 import { listCategories } from "@/features/settings/lib/categories.server";
+import { listPipelineStages } from "@/features/pipeline/lib/pipeline.server";
+import { DEFAULT_PIPELINE_STAGES } from "@/features/pipeline/lib/pipeline.types";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -45,6 +47,7 @@ function ClientsPage() {
       listClients({ data: { status, search, categoryId: categoryId === "all" ? undefined : categoryId } }),
   });
   const catsQ = useQuery({ queryKey: ["categories"], queryFn: () => listCategories() });
+  const stagesQ = useQuery({ queryKey: ["pipeline-stages"], queryFn: () => listPipelineStages() });
 
   const archive = useMutation({
     mutationFn: (id: string) => archiveClient({ data: { id } }),
@@ -182,7 +185,7 @@ function ClientsPage() {
         ))}
       </div>
 
-      <NewClientDialog open={openNew} onOpenChange={setOpenNew} categories={catsQ.data ?? []} />
+      <NewClientDialog open={openNew} onOpenChange={setOpenNew} categories={catsQ.data ?? []} stages={stagesQ.data ?? DEFAULT_PIPELINE_STAGES} />
       <ClientDetailSheet clientId={openId} open={!!openId} onOpenChange={(o) => !o && setOpenId(null)} />
 
     </div>

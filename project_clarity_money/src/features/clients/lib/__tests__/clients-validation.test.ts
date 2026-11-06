@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { clientSchema } from "../clients.schemas";
 
 describe("clientSchema — pipeline_stage", () => {
-  it("aceita payload mínimo sem pipeline_stage (undefined → DB default 'novo')", () => {
+  it("aceita payload mínimo sem pipeline_stage (undefined → DB default)", () => {
     const result = clientSchema.safeParse({ type: "PF", name: "Ana Lima" });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -30,7 +30,15 @@ describe("clientSchema — pipeline_stage", () => {
     }
   });
 
-  it("aceita todos os estágios válidos do pipeline", () => {
+  it("aceita etapas customizadas criadas pelo usuário", () => {
+    const customStages = ["proposta_enviada", "em_negociacao", "minha_etapa_custom"];
+    for (const stage of customStages) {
+      const result = clientSchema.safeParse({ type: "PF", name: "Cliente", pipeline_stage: stage });
+      expect(result.success, `etapa customizada '${stage}' deveria ser aceita`).toBe(true);
+    }
+  });
+
+  it("aceita os estágios padrão do sistema", () => {
     const stages = [
       "novo",
       "primeiro_contato",
@@ -39,7 +47,8 @@ describe("clientSchema — pipeline_stage", () => {
       "fechamento",
       "contrato_enviado",
       "em_andamento",
-    ] as const;
+      "finalizado",
+    ];
 
     for (const stage of stages) {
       const result = clientSchema.safeParse({ type: "PF", name: "Cliente", pipeline_stage: stage });
@@ -47,11 +56,11 @@ describe("clientSchema — pipeline_stage", () => {
     }
   });
 
-  it("rejeita pipeline_stage com valor inválido", () => {
+  it("rejeita pipeline_stage vazio", () => {
     const result = clientSchema.safeParse({
       type: "PF",
       name: "Ana Lima",
-      pipeline_stage: "etapa_invalida",
+      pipeline_stage: "",
     });
     expect(result.success).toBe(false);
   });

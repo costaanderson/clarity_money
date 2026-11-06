@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { CLIENT_SOURCES, type ClientSource } from "@/features/clients/lib/clients.types";
-import { PIPELINE_STAGES, type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
 import crypto from "crypto";
 
 type OverviewInput = { from: string; to: string };
@@ -106,13 +105,19 @@ export const getCockpitOverview = createServerFn({ method: "GET" })
       return row;
     });
 
-    const stages: PipelineStage[] = PIPELINE_STAGES.map((s) => s.key as PipelineStage);
+    // Busca etapas dinâmicas do usuário para o funil
+    const { data: userStages } = await context.supabase
+      .from("pipeline_stages")
+      .select("slug,label")
+      .order("position", { ascending: true });
+    const stageList = userStages ?? [];
+
     const funnel = sources.map((s) => {
       const inSource = (created ?? []).filter((c) => c.source === s);
-      const counts = stages.map((st) => ({
-        stage: st,
-        label: PIPELINE_STAGES.find((p) => p.key === st)!.label,
-        count: inSource.filter((c) => c.pipeline_stage === st).length,
+      const counts = stageList.map((st) => ({
+        stage: st.slug,
+        label: st.label,
+        count: inSource.filter((c) => c.pipeline_stage === st.slug).length,
       }));
       return {
         source: s,

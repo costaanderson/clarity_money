@@ -21,20 +21,23 @@ import {
 import { useState } from "react";
 import { createClient as createClientFn } from "@/features/clients/lib/clients.server";
 import { CLIENT_SOURCES, type ClientSource } from "@/features/clients/lib/clients.types";
-import { PIPELINE_STAGES, type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
+import { type PipelineStage } from "@/features/pipeline/lib/pipeline.types";
 import { CategoryMultiSelect } from "@/features/clients/components/category-multi-select";
 import { toast } from "sonner";
 
 type Category = { id: string; name: string; color: string };
+type Stage = { id: string; label: string; slug: string };
 
 export function NewClientDialog({
   open,
   onOpenChange,
   categories,
+  stages,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   categories: Category[];
+  stages: Stage[];
 }) {
   const qc = useQueryClient();
   const [type, setType] = useState<"PF" | "PJ">("PF");
@@ -46,7 +49,7 @@ export function NewClientDialog({
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [source, setSource] = useState<ClientSource>("outro");
   const [campaign, setCampaign] = useState("");
-  const [pipelineStage, setPipelineStage] = useState<PipelineStage>("novo");
+  const [pipelineStage, setPipelineStage] = useState<PipelineStage>(() => stages[0]?.slug ?? "novo");
 
   const create = useMutation({
     mutationFn: () =>
@@ -155,8 +158,8 @@ export function NewClientDialog({
             <Select value={pipelineStage} onValueChange={(v) => setPipelineStage(v as PipelineStage)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {PIPELINE_STAGES.map((s) => (
-                  <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                {stages.map((s) => (
+                  <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
