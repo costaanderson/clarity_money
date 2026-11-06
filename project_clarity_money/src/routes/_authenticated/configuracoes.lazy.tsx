@@ -2,7 +2,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle, HardDrive, FolderOpen, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
+import { CalendarClock, Sparkles, Shield, Link2, Copy, Check, Trash2, Plus, CheckCircle2, XCircle, HardDrive, FolderOpen, Loader2, Eye, EyeOff, KeyRound, FlaskConical, FolderSearch } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseError } from "@/lib/parse-error";
 import {
@@ -18,7 +18,9 @@ import {
   getGoogleDriveConnectionStatus,
   revokeGoogleDrive,
   saveDriveFolder,
+  testDriveStructure,
 } from "@/features/agenda/lib/google-auth.functions";
+import type { DriveStructurePreview } from "@/features/agenda/lib/google-drive-reader";
 import {
   getUserAiConfigStatus,
   saveUserAiConfig,
@@ -162,6 +164,7 @@ function GoogleCalendarCard() {
 function GoogleDriveCard() {
   const qc = useQueryClient();
   const [folderUrl, setFolderUrl] = useState("");
+  const [preview, setPreview] = useState<DriveStructurePreview | null>(null);
 
   const statusQ = useQuery({
     queryKey: ["google-drive-status"],
@@ -182,8 +185,15 @@ function GoogleDriveCard() {
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["google-drive-status"] });
       setFolderUrl("");
+      setPreview(null);
       toast.success(`Pasta "${r.folderName}" configurada.`);
     },
+    onError: (e: Error) => toast.error(parseError(e)),
+  });
+
+  const testStructure = useMutation({
+    mutationFn: () => testDriveStructure(),
+    onSuccess: (r) => setPreview(r),
     onError: (e: Error) => toast.error(parseError(e)),
   });
 
@@ -275,10 +285,62 @@ function GoogleDriveCard() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Cole o link da pasta (ex: drive.google.com/drive/folders/…) e clique em Salvar.
-                A Donna vai ler os arquivos dessa pasta ao gerar briefings.
+                Cole o link da pasta raiz (ex: "Clientes Ativos"). A Donna vai navegar as subpastas
+                procurando por uma pasta chamada "transcrições" dentro de cada cliente.
               </p>
             </div>
+
+            {/* Botão testar + preview da estrutura */}
+            {status.folderId && (
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5"
+                  onClick={() => testStructure.mutate()}
+                  disabled={testStructure.isPending}
+                >
+                  {testStructure.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FlaskConical className="h-3.5 w-3.5" />
+                  )}
+                  {testStructure.isPending ? "Verificando…" : "Testar leitura"}
+                </Button>
+
+                {preview && (
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                    <p className="text-xs font-medium flex items-center gap-1.5">
+                      <FolderSearch className="h-3.5 w-3.5 text-amber-500" />
+                      Estrutura encontrada na pasta
+                    </p>
+                    {preview.topFolders.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Nenhuma subpasta encontrada. Verifique se a pasta correta foi configurada.
+                      </p>
+                    ) : (
+                      <div className="space-y-1">
+                        {preview.topFolders.map((f) => (
+                          <div key={f.name} className="flex items-center gap-2 text-xs">
+                            <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            <span className="flex-1 truncate">{f.name}</span>
+                            {f.hasTranscriptions ? (
+                              <Badge variant="outline" className="text-[10px] border-emerald-400 text-emerald-700 shrink-0">
+                                {f.fileCount} arquivo{f.fileCount !== 1 ? "s" : ""}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] text-muted-foreground shrink-0">
+                                sem transcrições
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <Button variant="outline" onClick={handleConnect}>

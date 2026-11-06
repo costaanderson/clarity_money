@@ -10,6 +10,10 @@ const MAX_FILES = 30;
 const MAX_CHARS_PER_FILE = 5_000;
 const MAX_CHARS_TOTAL = 40_000;
 
+const MAX_FILES_PER_CLIENT = 10;
+const MAX_CHARS_PER_FILE_CLIENT = 3_000;
+const MAX_CHARS_PER_CLIENT = 15_000;
+
 type DriveFile = {
   id: string;
   name: string;
@@ -119,6 +123,170 @@ async function readFileContent(
   const arrayBuffer = await res.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   return extractText(buffer, file.mimeType);
+}
+
+/** Normaliza um nome para comparação: remove acentos, minúsculas, trim. */
+function normalizeFolderName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+/** Retorna o token e o folder_id configurados para o userId, ou null se indisponível. */
+async function getDriveCredentials(
+  userId: string,
+): Promise<{ token: string; folderId: string } | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: row } = await (supabaseAdmin as any)
+    .from("google_drive_tokens")
+    .select("folder_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!row || !(row as any).folder_id) return null;
+
+  const { getValidGoogleDriveToken } = await import(
+    "@/features/agenda/lib/google-auth.functions"
+  );
+  const token = await getValidGoogleDriveToken(userId);
+  if (!token) return null;
+
+  return { token, folderId: (row as any).folder_id };
+}
+
+/**
+ * Lê transcrições do Drive indexadas pelo nome da pasta de cliente (nível 1).
+ * Estrutura esperada: RootFolder → [Nome do Cliente] → transcrições → arquivos
+ * Retorna Map<clientFolderName, DriveFileContent[]>
+ */
+export async function readDriveTranscriptionsByClient(
+  userId: string,
+): Promise<Map<string, DriveFileContent[]>> {
+  const creds = await getDriveCredentials(userId);
+  if (!creds) return new Map();
+
+  const { token, folderId } = creds;
+
+  let topLevel: DriveItem[];
+  try {
+    topLevel = await listItemsInFolder(token, folderId);
+  } catch {
+    return new Map();
+  }
+
+  const result = new Map<string, DriveFileContent[]>();
+
+  for (const clientFolder of topLevel) {
+    if (clientFolder.mimeType !== FOLDER_MIME) continue;
+
+    // Encontra a subpasta de transcrições (nome contém "transcri", case-insensitive)
+    let clientItems: DriveItem[];
+    try {
+      clientItems = await listItemsInFolder(token, clientFolder.id);
+    } catch {
+      continue;
+    }
+
+    const transcFolder = clientItems.find(
+      (item) =>
+        item.mimeType === FOLDER_MIME &&
+        normalizeFolderName(item.name).includes("transcri"),
+    );
+
+    if (!transcFolder) continue;
+
+    let transcFiles: DriveItem[];
+    try {
+      transcFiles = await listItemsInFolder(token, transcFolder.id);
+    } catch {
+      continue;
+    }
+
+    const supportedFiles = transcFiles
+      .filter((f) => SUPPORTED_MIME_TYPES.includes(f.mimeType))
+      .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
+      .slice(0, MAX_FILES_PER_CLIENT);
+
+    const clientContents: DriveFileContent[] = [];
+    let totalChars = 0;
+
+    for (const file of supportedFiles) {
+      if (totalChars >= MAX_CHARS_PER_CLIENT) break;
+      let content: string | null = null;
+      try {
+        content = await readFileContent(token, file);
+      } catch {
+        continue;
+      }
+      if (!content) continue;
+      const truncated = content.slice(0, MAX_CHARS_PER_FILE_CLIENT);
+      clientContents.push({ name: file.name, content: truncated, modifiedTime: file.modifiedTime });
+      totalChars += truncated.length;
+    }
+
+    if (clientContents.length > 0) {
+      result.set(clientFolder.name, clientContents);
+    }
+  }
+
+  return result;
+}
+
+export type DriveStructurePreview = {
+  topFolders: Array<{
+    name: string;
+    hasTranscriptions: boolean;
+    fileCount: number;
+  }>;
+};
+
+/**
+ * Retorna uma prévia da estrutura de pastas do Drive (apenas metadados, sem ler conteúdo).
+ * Usado na página de Configurações para validar a hierarquia antes de gerar um briefing.
+ */
+export async function previewDriveStructure(userId: string): Promise<DriveStructurePreview> {
+  const creds = await getDriveCredentials(userId);
+  if (!creds) return { topFolders: [] };
+
+  const { token, folderId } = creds;
+
+  let topLevel: DriveItem[];
+  try {
+    topLevel = await listItemsInFolder(token, folderId);
+  } catch {
+    return { topFolders: [] };
+  }
+
+  const topFolders: DriveStructurePreview["topFolders"] = [];
+
+  for (const item of topLevel) {
+    if (item.mimeType !== FOLDER_MIME) continue;
+
+    let hasTranscriptions = false;
+    let fileCount = 0;
+
+    try {
+      const children = await listItemsInFolder(token, item.id);
+      const transcFolder = children.find(
+        (c) =>
+          c.mimeType === FOLDER_MIME &&
+          normalizeFolderName(c.name).includes("transcri"),
+      );
+      if (transcFolder) {
+        hasTranscriptions = true;
+        const transcFiles = await listItemsInFolder(token, transcFolder.id);
+        fileCount = transcFiles.filter((f) => SUPPORTED_MIME_TYPES.includes(f.mimeType)).length;
+      }
+    } catch {
+      // subpasta inacessível — inclui sem transcrições
+    }
+
+    topFolders.push({ name: item.name, hasTranscriptions, fileCount });
+  }
+
+  return { topFolders };
 }
 
 /**

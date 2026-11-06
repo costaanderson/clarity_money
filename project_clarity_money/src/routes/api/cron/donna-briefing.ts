@@ -231,31 +231,28 @@ async function generateForUser(
     .gte("created_at", since24h)
     .order("created_at", { ascending: false });
 
-  // 7. Arquivos do Google Drive + config de IA
-  const { readDriveFolder } = await import("@/features/agenda/lib/google-drive-reader");
-  const [driveFiles, aiConfig] = await Promise.all([
-    readDriveFolder(userId),
+  // 7. Transcrições do Drive (indexadas por nome da pasta do cliente) + config de IA
+  const { readDriveTranscriptionsByClient } = await import("@/features/agenda/lib/google-drive-reader");
+  const [driveByClientName, aiConfig] = await Promise.all([
+    readDriveTranscriptionsByClient(userId),
     getCallableAiConfig(userId),
   ]);
 
-  // Associa arquivos do Drive aos clientes pelo nome da pasta (primeiro segmento do path)
-  function normalizeForMatch(s: string) {
-    return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  function normalizeName(s: string) {
+    return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
   }
-  const driveByClient = new Map<string, typeof driveFiles>();
-  const unmatchedDriveFiles: typeof driveFiles = [];
-  for (const file of driveFiles) {
-    const clientFolder = file.name.split(" / ")[0];
-    const normalizedFolder = normalizeForMatch(clientFolder);
-    const matchedClient = (allClients ?? []).find(
-      (c) => normalizeForMatch(c.name) === normalizedFolder,
-    );
-    if (matchedClient) {
-      if (!driveByClient.has(matchedClient.id)) driveByClient.set(matchedClient.id, []);
-      driveByClient.get(matchedClient.id)!.push(file);
-    } else {
-      unmatchedDriveFiles.push(file);
+
+  function getClientDriveFiles(clientName: string) {
+    const norm = normalizeName(clientName);
+    for (const [key, files] of driveByClientName) {
+      if (normalizeName(key) === norm) return files;
     }
+    const firstName = norm.split(/\s+/)[0];
+    for (const [key, files] of driveByClientName) {
+      const keyNorm = normalizeName(key);
+      if (keyNorm.includes(firstName) || norm.includes(keyNorm)) return files;
+    }
+    return null;
   }
 
   // 8. Montar userMessage
@@ -318,18 +315,17 @@ async function generateForUser(
       lines.push(`Tarefas atrasadas: ${overdue.length > 0 ? overdue.map((t) => `${t.title} (vencia ${t.due_at ? new Date(t.due_at).toLocaleDateString("pt-BR", { timeZone: SP_TZ }) : "?"})`).join("; ") : "nenhuma"}`);
       lines.push(`Tarefas em aberto: ${open.length > 0 ? open.map((t) => t.title).join("; ") : "nenhuma"}`);
 
-      const clientDriveFiles = m.clientId ? (driveByClient.get(m.clientId) ?? []) : [];
-      if (clientDriveFiles.length > 0) {
-        lines.push("Transcrições recentes (Drive):");
-        for (const f of clientDriveFiles.slice(0, 3)) {
+      const clientDriveFiles = m.clientName ? getClientDriveFiles(m.clientName) : null;
+      if (clientDriveFiles && clientDriveFiles.length > 0) {
+        lines.push("Transcrições de sessão (Drive):");
+        for (const f of clientDriveFiles) {
           const modDate = new Date(f.modifiedTime).toLocaleDateString("pt-BR", { timeZone: SP_TZ });
-          const fileName = f.name.split(" / ").pop() ?? f.name;
-          lines.push(`- [${fileName}] (${modDate})`);
-          lines.push('"""');
-          lines.push(f.content.slice(0, 2_000));
-          lines.push('"""');
+          lines.push(`- [${f.name} · ${modDate}]`);
+          lines.push(f.content);
           lines.push("");
         }
+      } else if (driveByClientName.size > 0) {
+        lines.push("(sem transcrições no Drive para este cliente)");
       }
     }
 
@@ -346,12 +342,11 @@ async function generateForUser(
       const lastEv = lastEventByClient.get(c.id);
       lines.push(`- ${c.name} (${c.type}) — ${c.daysSince !== null ? `${c.daysSince} dias sem sessão` : "sem histórico"}`);
       if (lastEv) lines.push(`  última sessão: ${new Date(lastEv).toLocaleDateString("pt-BR", { timeZone: SP_TZ })}`);
-      const clientDriveFiles = driveByClient.get(c.id) ?? [];
-      if (clientDriveFiles.length > 0) {
+      const clientDriveFiles = getClientDriveFiles(c.name);
+      if (clientDriveFiles && clientDriveFiles.length > 0) {
         const latest = clientDriveFiles[0];
         const modDate = new Date(latest.modifiedTime).toLocaleDateString("pt-BR", { timeZone: SP_TZ });
-        const fileName = latest.name.split(" / ").pop() ?? latest.name;
-        lines.push(`  transcrição mais recente — [${fileName}] (${modDate}): ${latest.content.slice(0, 800)}`);
+        lines.push(`  transcrição mais recente — [${latest.name}] (${modDate}): ${latest.content.slice(0, 800)}`);
       }
     }
   }
@@ -398,17 +393,9 @@ async function generateForUser(
     }
   }
 
-  lines.push("");
-  lines.push("─── ARQUIVOS DO DRIVE (sem cliente vinculado) ───");
-  if (unmatchedDriveFiles.length === 0) {
-    lines.push("(todos os arquivos do Drive foram vinculados a clientes acima)");
-  } else {
-    for (const f of unmatchedDriveFiles) {
-      const modDate = new Date(f.modifiedTime).toLocaleDateString("pt-BR", { timeZone: SP_TZ });
-      lines.push(`[${f.name}] (atualizado em ${modDate})`);
-      lines.push(f.content);
-      lines.push("");
-    }
+  if (driveByClientName.size === 0) {
+    lines.push("");
+    lines.push("─── DRIVE: pasta não configurada ou sem transcrições encontradas ───");
   }
 
   const userMessage = lines.join("\n");

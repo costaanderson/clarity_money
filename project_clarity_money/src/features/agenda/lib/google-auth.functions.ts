@@ -163,6 +163,15 @@ export const revokeGoogleDrive = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const testDriveStructure = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { previewDriveStructure } = await import(
+      "@/features/agenda/lib/google-drive-reader"
+    );
+    return previewDriveStructure(context.userId);
+  });
+
 // ─── Internal helpers (server-only) ──────────────────────────────────────────
 
 async function fetchGoogleEmail(accessToken: string): Promise<string | null> {

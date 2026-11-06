@@ -277,11 +277,36 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
       .gte("created_at", since24h)
       .order("created_at", { ascending: false });
 
-    const { readDriveFolder } = await import("@/features/agenda/lib/google-drive-reader");
-    const [driveFiles, aiConfig] = await Promise.all([
-      readDriveFolder(context.userId),
+    const { readDriveTranscriptionsByClient } = await import("@/features/agenda/lib/google-drive-reader");
+    const [driveByClient, aiConfig] = await Promise.all([
+      readDriveTranscriptionsByClient(context.userId),
       getCallableAiConfig(context.userId),
     ]);
+
+    /** Normaliza nome para matching: remove acentos, minúsculas, trim. */
+    function normalizeName(s: string): string {
+      return s
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .toLowerCase()
+        .trim();
+    }
+
+    /** Busca as transcrições do Drive para um cliente pelo nome. */
+    function getClientDriveFiles(clientName: string) {
+      const norm = normalizeName(clientName);
+      // 1. exact match
+      for (const [key, files] of driveByClient) {
+        if (normalizeName(key) === norm) return files;
+      }
+      // 2. o nome do cliente começa com a chave do Drive ou vice-versa
+      const firstName = norm.split(/\s+/)[0];
+      for (const [key, files] of driveByClient) {
+        const keyNorm = normalizeName(key);
+        if (keyNorm.includes(firstName) || norm.includes(keyNorm)) return files;
+      }
+      return null;
+    }
 
     const dateLabel = new Date().toLocaleDateString("pt-BR", {
       weekday: "long",
@@ -351,6 +376,18 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
           for (const d of docs) {
             lines.push(`- [${d.name}] ${(d.extracted_text ?? "").slice(0, 500)}`);
           }
+        }
+
+        const driveTranscriptions = getClientDriveFiles(m.clientName ?? "");
+        if (driveTranscriptions && driveTranscriptions.length > 0) {
+          lines.push("Transcrições de sessão (Drive):");
+          for (const f of driveTranscriptions) {
+            const modDate = new Date(f.modifiedTime).toLocaleDateString("pt-BR", { timeZone: SP_TZ });
+            lines.push(`- [${f.name} · ${modDate}]`);
+            lines.push(f.content);
+          }
+        } else if (driveByClient.size > 0) {
+          lines.push("(sem transcrições no Drive para este cliente)");
         }
 
         lines.push(
@@ -436,17 +473,10 @@ export const generateDonnaBriefing = createServerFn({ method: "POST" })
       }
     }
 
-    lines.push("");
-    lines.push("─── ARQUIVOS DO GOOGLE DRIVE ───");
-    if (driveFiles.length === 0) {
-      lines.push("(nenhuma pasta configurada ou sem arquivos)");
-    } else {
-      for (const f of driveFiles) {
-        const modDate = new Date(f.modifiedTime).toLocaleDateString("pt-BR", { timeZone: SP_TZ });
-        lines.push(`[${f.name}] (atualizado em ${modDate})`);
-        lines.push(f.content);
-        lines.push("");
-      }
+    // Arquivos do Drive não associados a nenhum cliente (docs gerais na raiz)
+    if (driveByClient.size === 0) {
+      lines.push("");
+      lines.push("─── DRIVE: pasta não configurada ou sem transcrições encontradas ───");
     }
 
     const userMessage = lines.join("\n");
