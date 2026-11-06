@@ -57,3 +57,26 @@ export const moveClientStage = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const bulkMoveClientStage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1),
+        stage: pipelineStageEnum,
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const update = {
+      pipeline_stage: data.stage,
+      finalized_at: data.stage === "finalizado" ? new Date().toISOString() : null,
+    };
+    const { error } = await context.supabase
+      .from("clients")
+      .update(update)
+      .in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
