@@ -378,6 +378,13 @@ function StagesSettingsSheet({
   const [editingLabel, setEditingLabel] = useState("");
   const [localStages, setLocalStages] = useState<PipelineStageRow[]>(stages);
 
+  const reorder = useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      reorderPipelineStages({ data: { orderedIds } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pipeline-stages"] }),
+    onError: (e: Error) => toast.error(parseError(e)),
+  });
+
   // Sincroniza estado local com o servidor, mas não enquanto uma mutation está pendente
   // (evita que o refetch reverta a ordem antes do servidor confirmar)
   useEffect(() => {
@@ -414,13 +421,6 @@ function StagesSettingsSheet({
       qc.invalidateQueries({ queryKey: ["pipeline-stages"] });
       qc.invalidateQueries({ queryKey: ["pipeline"] });
     },
-    onError: (e: Error) => toast.error(parseError(e)),
-  });
-
-  const reorder = useMutation({
-    mutationFn: (orderedIds: string[]) =>
-      reorderPipelineStages({ data: { orderedIds } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["pipeline-stages"] }),
     onError: (e: Error) => toast.error(parseError(e)),
   });
 
