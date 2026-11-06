@@ -73,6 +73,23 @@ export const updatePipelineStage = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const reorderPipelineStages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ orderedIds: z.array(z.string().uuid()).min(1) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    for (let i = 0; i < data.orderedIds.length; i++) {
+      const { error } = await context.supabase
+        .from("pipeline_stages")
+        .update({ position: i })
+        .eq("id", data.orderedIds[i])
+        .eq("user_id", context.userId);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
 export const deletePipelineStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>

@@ -8,6 +8,7 @@ import {
   createPipelineStage,
   updatePipelineStage,
   deletePipelineStage,
+  reorderPipelineStages,
 } from "@/features/pipeline/lib/pipeline.server";
 import { DEFAULT_PIPELINE_STAGES, type PipelineStage, type PipelineStageRow } from "@/features/pipeline/lib/pipeline.types";
 import { parseError } from "@/lib/parse-error";
@@ -46,7 +47,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ClientDetailSheet } from "@/features/clients/components/client-detail-sheet";
 
@@ -375,6 +376,12 @@ function StagesSettingsSheet({
   const [newLabel, setNewLabel] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
+  const [localStages, setLocalStages] = useState<PipelineStageRow[]>(stages);
+
+  // Sincroniza estado local quando o servidor retorna nova ordem
+  useEffect(() => {
+    setLocalStages(stages);
+  }, [stages]);
 
   const addStage = useMutation({
     mutationFn: () => createPipelineStage({ data: { label: newLabel.trim(), is_won: false } }),
@@ -408,8 +415,8 @@ function StagesSettingsSheet({
   });
 
   const reorder = useMutation({
-    mutationFn: ({ id, position }: { id: string; position: number }) =>
-      updatePipelineStage({ data: { id, position } }),
+    mutationFn: (orderedIds: string[]) =>
+      reorderPipelineStages({ data: { orderedIds } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pipeline-stages"] }),
     onError: (e: Error) => toast.error(parseError(e)),
   });
@@ -426,18 +433,18 @@ function StagesSettingsSheet({
 
   function moveUp(idx: number) {
     if (idx === 0) return;
-    const a = stages[idx];
-    const b = stages[idx - 1];
-    reorder.mutate({ id: a.id, position: b.position });
-    reorder.mutate({ id: b.id, position: a.position });
+    const next = [...localStages];
+    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+    setLocalStages(next);
+    reorder.mutate(next.map((s) => s.id));
   }
 
   function moveDown(idx: number) {
-    if (idx === stages.length - 1) return;
-    const a = stages[idx];
-    const b = stages[idx + 1];
-    reorder.mutate({ id: a.id, position: b.position });
-    reorder.mutate({ id: b.id, position: a.position });
+    if (idx === localStages.length - 1) return;
+    const next = [...localStages];
+    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+    setLocalStages(next);
+    reorder.mutate(next.map((s) => s.id));
   }
 
   return (
@@ -451,7 +458,7 @@ function StagesSettingsSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-2">
-          {stages.map((s, idx) => (
+          {localStages.map((s, idx) => (
             <div key={s.id} className="flex items-center gap-2 group rounded-lg border bg-card px-3 py-2">
               {/* Reordenar */}
               <div className="flex flex-col gap-0.5">
@@ -464,7 +471,7 @@ function StagesSettingsSheet({
                 </button>
                 <button
                   onClick={() => moveDown(idx)}
-                  disabled={idx === stages.length - 1}
+                  disabled={idx === localStages.length - 1}
                   className="text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                 >
                   <ChevronDown className="h-3.5 w-3.5" />
