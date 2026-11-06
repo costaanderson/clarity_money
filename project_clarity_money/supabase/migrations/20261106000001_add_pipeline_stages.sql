@@ -16,15 +16,46 @@ create policy "Users manage their own pipeline stages"
   on pipeline_stages for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Precisa dropar o trigger antes de alterar o tipo do enum
+drop trigger if exists trg_client_stage_change on clients;
+
 -- Converte clients.pipeline_stage de enum para text
 alter table clients
   alter column pipeline_stage type text
   using pipeline_stage::text;
 
--- Converte client_stage_history.stage de enum para text (se existir)
+-- Converte client_stage_history.stage de enum para text
 alter table client_stage_history
   alter column stage type text
   using stage::text;
+
+-- Recria a função sem dependência do enum (já usa text)
+create or replace function public.log_client_stage_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    insert into public.client_stage_history (client_id, user_id, stage, status)
+    values (new.id, new.user_id, new.pipeline_stage, new.status);
+  elsif new.pipeline_stage is distinct from old.pipeline_stage
+     or new.status is distinct from old.status then
+    insert into public.client_stage_history (client_id, user_id, stage, status)
+    values (new.id, new.user_id, new.pipeline_stage, new.status);
+  end if;
+  return new;
+end;
+$$;
+
+-- Recria o trigger
+create trigger trg_client_stage_change
+after insert or update of pipeline_stage, status on public.clients
+for each row execute function public.log_client_stage_change();
+
+-- Agora é seguro dropar o enum (sem dependências)
+drop type if exists public.pipeline_stage;
 
 -- Semeia as etapas padrão para todos os usuários existentes
 insert into pipeline_stages (user_id, label, slug, position, is_won)
