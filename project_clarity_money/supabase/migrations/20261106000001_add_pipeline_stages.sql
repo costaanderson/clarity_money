@@ -54,8 +54,15 @@ create trigger trg_client_stage_change
 after insert or update of pipeline_stage, status on public.clients
 for each row execute function public.log_client_stage_change();
 
+-- Remove o default que ainda referencia o enum, para poder dropá-lo
+alter table clients alter column pipeline_stage drop default;
+alter table client_stage_history alter column stage drop default;
+
 -- Agora é seguro dropar o enum (sem dependências)
 drop type if exists public.pipeline_stage;
+
+-- Recoloca o default como text puro
+alter table clients alter column pipeline_stage set default 'novo';
 
 -- Semeia as etapas padrão para todos os usuários existentes
 insert into pipeline_stages (user_id, label, slug, position, is_won)
