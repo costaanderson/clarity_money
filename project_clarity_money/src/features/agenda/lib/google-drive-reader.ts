@@ -157,6 +157,100 @@ async function getDriveCredentials(
 }
 
 /**
+ * Encontra a pasta do Drive cujo nome corresponde ao clientName.
+ * Usa exact match normalizado com fallback por primeiro nome.
+ * Retorna o id da pasta ou null se não encontrado.
+ */
+async function findClientFolder(
+  token: string,
+  folderId: string,
+  clientName: string,
+): Promise<string | null> {
+  let topLevel: DriveItem[];
+  try {
+    topLevel = await listItemsInFolder(token, folderId);
+  } catch {
+    return null;
+  }
+
+  const normalizedClient = normalizeFolderName(clientName);
+  const firstNameClient = normalizedClient.split(/\s+/)[0];
+
+  for (const folder of topLevel) {
+    if (folder.mimeType !== FOLDER_MIME) continue;
+    const normalizedFolder = normalizeFolderName(folder.name);
+    if (normalizedFolder === normalizedClient) return folder.id;
+    if (normalizedFolder.split(/\s+/)[0] === firstNameClient) return folder.id;
+  }
+
+  return null;
+}
+
+/**
+ * Lê transcrições do Drive para um único cliente.
+ * Estrutura esperada: RootFolder → [Nome do Cliente] → transcrições → arquivos
+ * Retorna [] se Drive não conectado, cliente não encontrado ou sem transcrições.
+ */
+export async function readDriveTranscriptionsForClient(
+  userId: string,
+  clientName: string,
+): Promise<DriveFileContent[]> {
+  const creds = await getDriveCredentials(userId);
+  if (!creds) return [];
+
+  const { token, folderId } = creds;
+
+  const clientFolderId = await findClientFolder(token, folderId, clientName);
+  if (!clientFolderId) return [];
+
+  let clientItems: DriveItem[];
+  try {
+    clientItems = await listItemsInFolder(token, clientFolderId);
+  } catch {
+    return [];
+  }
+
+  const transcFolder = clientItems.find(
+    (item) =>
+      item.mimeType === FOLDER_MIME &&
+      normalizeFolderName(item.name).includes("transcri"),
+  );
+
+  if (!transcFolder) return [];
+
+  let transcFiles: DriveItem[];
+  try {
+    transcFiles = await listItemsInFolder(token, transcFolder.id);
+  } catch {
+    return [];
+  }
+
+  const supportedFiles = transcFiles
+    .filter((f) => SUPPORTED_MIME_TYPES.includes(f.mimeType))
+    .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
+    .slice(0, MAX_FILES_PER_CLIENT);
+
+  const results: DriveFileContent[] = [];
+  let totalChars = 0;
+
+  for (const file of supportedFiles) {
+    if (totalChars >= MAX_CHARS_PER_CLIENT) break;
+    let content: string | null = null;
+    try {
+      content = await readFileContent(token, file);
+    } catch {
+      continue;
+    }
+    if (!content) continue;
+    const truncated = content.slice(0, MAX_CHARS_PER_FILE_CLIENT);
+    results.push({ name: file.name, content: truncated, modifiedTime: file.modifiedTime });
+    totalChars += truncated.length;
+  }
+
+  return results;
+}
+
+/**
  * Lê transcrições do Drive indexadas pelo nome da pasta de cliente (nível 1).
  * Estrutura esperada: RootFolder → [Nome do Cliente] → transcrições → arquivos
  * Retorna Map<clientFolderName, DriveFileContent[]>

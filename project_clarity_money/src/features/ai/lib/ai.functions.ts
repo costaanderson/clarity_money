@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { callAI, getCallableAiConfig } from "./call-ai";
+import { readDriveTranscriptionsForClient, type DriveFileContent } from "@/features/agenda/lib/google-drive-reader";
 
 type Kind = "resumo" | "mensagem" | "analise" | "briefing";
 
@@ -46,11 +47,20 @@ export const generateAI = createServerFn({ method: "POST" })
     ]);
     if (!client) throw new Error("Cliente não encontrado");
 
+    // Busca transcrições do Drive para este cliente (silent — não falha se Drive indisponível)
+    let driveTranscriptions: DriveFileContent[] = [];
+    try {
+      driveTranscriptions = await readDriveTranscriptionsForClient(context.userId, client.name);
+    } catch {
+      // Drive não conectado ou erro de rede — continua sem transcrições
+    }
+
     const hasNotes = (notes ?? []).length > 0;
     const hasDocs = (documents ?? []).length > 0;
-    if (!hasNotes && !hasDocs) {
+    const hasDrive = driveTranscriptions.length > 0;
+    if (!hasNotes && !hasDocs && !hasDrive) {
       throw new Error(
-        "Adicione ao menos uma nota ou suba um documento indexável (transcrição ou resumo em texto) para gerar a análise.",
+        "Adicione ao menos uma nota, suba um documento indexável ou conecte o Google Drive com transcrições para gerar a análise.",
       );
     }
 
@@ -68,6 +78,18 @@ export const generateAI = createServerFn({ method: "POST" })
           ]
         : [];
 
+    const driveSection =
+      hasDrive
+        ? [
+            "",
+            "--- Transcrições do Google Drive ---",
+            ...driveTranscriptions.map(
+              (f) =>
+                `[${f.name} — ${new Date(f.modifiedTime).toLocaleDateString("pt-BR")}]\n${f.content}`,
+            ),
+          ]
+        : [];
+
     const contextText = [
       `Cliente: ${client.name} (${client.type})`,
       client.email ? `Email: ${client.email}` : null,
@@ -80,6 +102,7 @@ export const generateAI = createServerFn({ method: "POST" })
         (n) => `- [${n.kind}] ${new Date(n.created_at).toLocaleDateString("pt-BR")}: ${n.content}`,
       ),
       ...docsSection,
+      ...driveSection,
       data.extra_prompt ? `\nInstrução adicional do planejador: ${data.extra_prompt}` : "",
     ]
       .filter(Boolean)
@@ -112,4 +135,26 @@ export const listAIGenerations = createServerFn({ method: "GET" })
       .limit(20);
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+/** Busca transcrições do Google Drive para um cliente específico. */
+export const listClientDriveTranscriptions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string }) =>
+    z.object({ clientId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: client } = await context.supabase
+      .from("clients")
+      .select("name")
+      .eq("id", data.clientId)
+      .maybeSingle();
+
+    if (!client) return [];
+
+    try {
+      return await readDriveTranscriptionsForClient(context.userId, client.name);
+    } catch {
+      return [];
+    }
   });

@@ -20,7 +20,7 @@ import {
   listDocuments,
   registerDocument,
 } from "@/features/clients/lib/documents.server";
-import { generateAI, listAIGenerations } from "@/features/ai/lib/ai.functions";
+import { generateAI, listAIGenerations, listClientDriveTranscriptions } from "@/features/ai/lib/ai.functions";
 import { listCategories } from "@/features/settings/lib/categories.server";
 import { listClientDiagnostics } from "@/features/diagnostic/lib/diagnostics.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -46,10 +46,15 @@ import {
   HelpCircle,
   MessageSquare,
   Mail,
+  Mic,
   Moon,
+  Pause,
   Phone,
+  Play,
   Plus,
+  RefreshCw,
   Save,
+  Search,
   Sparkles,
   Trash2,
   Upload,
@@ -60,7 +65,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -203,7 +208,7 @@ export function ClientDetail({ id }: { id: string }) {
         <TabsList className="w-full justify-start h-auto p-0 bg-transparent border-b rounded-none gap-1 overflow-x-auto">
           {[
             { value: "dados", label: "Dados cadastrais", icon: null },
-            { value: "notas", label: "Notas & Contextos", icon: MessageSquare },
+            { value: "transcricoes", label: "Transcrições & Notas", icon: Mic },
             { value: "documentos", label: "Documentos", icon: FileText },
             { value: "diagnostico", label: "Diagnóstico", icon: Moon },
             { value: "ia", label: "IA Bússola", icon: Sparkles },
@@ -223,7 +228,7 @@ export function ClientDetail({ id }: { id: string }) {
         </TabsList>
 
         <TabsContent value="dados" className="mt-6"><EditPanel client={c} categories={catsQ.data ?? []} stages={stagesQ.data ?? []} /></TabsContent>
-        <TabsContent value="notas" className="mt-6"><NotesPanel clientId={id} /></TabsContent>
+        <TabsContent value="transcricoes" className="mt-6"><TranscriptionsPanel clientId={id} clientName={c.name} /></TabsContent>
         <TabsContent value="documentos" className="mt-6"><DocumentsPanel clientId={id} /></TabsContent>
         <TabsContent value="diagnostico" className="mt-6"><DiagnosticPanel clientId={id} /></TabsContent>
         <TabsContent value="ia" className="mt-6"><AIPanel clientId={id} /></TabsContent>
@@ -234,6 +239,394 @@ export function ClientDetail({ id }: { id: string }) {
 
 
 const NOTE_MAX = 4000;
+
+// ─── Helpers para transcrição ────────────────────────────────────────────────
+
+type TranscriptLine = {
+  timestamp: string | null;
+  speaker: string | null;
+  text: string;
+  tags: string[];
+};
+
+function parseTranscript(content: string): TranscriptLine[] {
+  const results: TranscriptLine[] = [];
+  for (const raw of content.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    // padrão: [HH:MM:SS] Nome: fala  ou  [HH:MM] Nome: fala  ou  Nome: fala
+    const withTs = line.match(/^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*([^:]+):\s*(.+)$/);
+    if (withTs) {
+      results.push({ timestamp: withTs[1], speaker: withTs[2].trim(), text: withTs[3].trim(), tags: detectTags(withTs[3]) });
+      continue;
+    }
+    const noTs = line.match(/^([A-ZÀ-Ü][^:]{1,40}):\s*(.+)$/);
+    if (noTs) {
+      results.push({ timestamp: null, speaker: noTs[1].trim(), text: noTs[2].trim(), tags: detectTags(noTs[2]) });
+      continue;
+    }
+    results.push({ timestamp: null, speaker: null, text: line, tags: detectTags(line) });
+  }
+  return results;
+}
+
+function detectTags(text: string): string[] {
+  const t = text.toLowerCase();
+  const tags: string[] = [];
+  if (/d[íi]vida|endivid/.test(t)) tags.push("Gatilho Financeiro");
+  if (/aposentad/.test(t)) tags.push("Aposentadoria");
+  if (/risco/.test(t)) tags.push("Objeção");
+  if (/aporte|invest/.test(t)) tags.push("Intenção de Aporte");
+  return tags;
+}
+
+function tsToSeconds(ts: string): number {
+  const parts = ts.split(":").map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return parts[0] * 60 + parts[1];
+}
+
+function formatSeconds(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+}
+
+const TAG_COLORS: Record<string, string> = {
+  "Gatilho Financeiro": "border-amber-400 text-amber-700 bg-amber-50",
+  "Aposentadoria": "border-blue-400 text-blue-700 bg-blue-50",
+  "Objeção": "border-red-400 text-red-700 bg-red-50",
+  "Intenção de Aporte": "border-green-500 text-green-700 bg-green-50",
+};
+
+// ─── TranscriptionsPanel ─────────────────────────────────────────────────────
+
+function TranscriptionsPanel({ clientId, clientName }: { clientId: string; clientName: string }) {
+  const qc = useQueryClient();
+
+  const driveQ = useQuery({
+    queryKey: ["drive-transcriptions", clientId],
+    queryFn: () => listClientDriveTranscriptions({ data: { clientId } }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const files = driveQ.data ?? [];
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [search, setSearch] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [synthesis, setSynthesis] = useState("");
+  const [synthError, setSynthError] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const selectedFile = files[selectedIdx] ?? null;
+  const totalDuration = 2880; // 48 min simulado
+
+  // Reset ao trocar de arquivo
+  useEffect(() => {
+    setProgress(0);
+    setIsPlaying(false);
+    setSynthesis("");
+    setSynthError(null);
+  }, [selectedIdx]);
+
+  // Player simulado
+  useEffect(() => {
+    if (isPlaying) {
+      intervalRef.current = setInterval(() => {
+        setProgress((p) => {
+          if (p >= totalDuration) { setIsPlaying(false); return totalDuration; }
+          return p + 1;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [isPlaying]);
+
+  const lines = selectedFile ? parseTranscript(selectedFile.content) : [];
+  const clientFirstName = clientName.split(" ")[0].toLowerCase();
+  const filtered = search.trim()
+    ? lines.filter((l) => l.text.toLowerCase().includes(search.toLowerCase()) || (l.speaker ?? "").toLowerCase().includes(search.toLowerCase()))
+    : lines;
+
+  const gen = useMutation({
+    mutationFn: () => generateAI({
+      data: {
+        client_id: clientId,
+        kind: "analise",
+        extra_prompt: selectedFile
+          ? `Analise a seguinte transcrição de sessão:\n\n${selectedFile.content}`
+          : undefined,
+      },
+    }),
+    onSuccess: (res) => {
+      setSynthesis(res.output);
+      setSynthError(null);
+    },
+    onError: (e: Error) => setSynthError(e.message),
+  });
+
+  // Parseia bullet points do output da IA para exibir como cards
+  const highlights = synthesis
+    .split("\n")
+    .filter((l) => l.trim().startsWith("-") || l.trim().startsWith("•") || l.trim().match(/^\d+\./))
+    .map((l) => l.replace(/^[-•\d.]\s*/, "").trim())
+    .filter(Boolean);
+
+  return (
+    <div className="space-y-4">
+      {/* Drive Sync Card */}
+      <Card className="border-border/60">
+        <CardContent className="p-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-full bg-background border flex items-center justify-center shrink-0">
+              <Mic className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium text-sm">Google Drive · Transcrições</p>
+              {driveQ.isLoading ? (
+                <p className="text-xs text-muted-foreground">Verificando…</p>
+              ) : files.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {files.length} arquivo{files.length > 1 ? "s" : ""} encontrado{files.length > 1 ? "s" : ""} para <strong>{clientName}</strong>
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma transcrição encontrada no Drive para este cliente
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {files.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-emerald-700 border-emerald-300 bg-emerald-50 border">
+                Indexado
+              </Badge>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={driveQ.isFetching}
+              onClick={() => qc.invalidateQueries({ queryKey: ["drive-transcriptions", clientId] })}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${driveQ.isFetching ? "animate-spin" : ""}`} />
+              Sincronizar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {files.length > 0 && (
+        <>
+          {/* Seletor de arquivo + player */}
+          <Card className="border-border/60">
+            <CardContent className="p-4 space-y-3">
+              {files.length > 1 && (
+                <div>
+                  <label className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">Transcrição</label>
+                  <Select
+                    value={String(selectedIdx)}
+                    onValueChange={(v) => setSelectedIdx(Number(v))}
+                  >
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {files.map((f, i) => (
+                        <SelectItem key={i} value={String(i)}>
+                          {f.name} · {new Date(f.modifiedTime).toLocaleDateString("pt-BR")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {files.length === 1 && (
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{selectedFile?.name}</p>
+                    {selectedFile && (
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(selectedFile.modifiedTime).toLocaleDateString("pt-BR")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Player simulado */}
+              <div className="bg-muted/40 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsPlaying((p) => !p)}
+                    className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0 hover:bg-primary/90 transition-colors"
+                  >
+                    {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
+                  </button>
+                  <span className="text-xs tabular-nums text-muted-foreground w-20 shrink-0">
+                    {formatSeconds(progress)} / {formatSeconds(totalDuration)}
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={totalDuration}
+                    value={progress}
+                    onChange={(e) => setProgress(Number(e.target.value))}
+                    className="flex-1 h-1.5 accent-primary cursor-pointer"
+                  />
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">1.0×</Badge>
+                </div>
+              </div>
+
+              {/* Busca */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  className="pl-8 h-8 text-sm"
+                  placeholder="Buscar palavras na transcrição…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Split view */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Coluna esquerda — Transcrição */}
+            <div className="space-y-1 max-h-[520px] overflow-y-auto pr-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2 sticky top-0 bg-background py-1">
+                Transcrição · {filtered.length} linha{filtered.length !== 1 ? "s" : ""}
+                {search && ` · filtrado por "${search}"`}
+              </p>
+              {filtered.length === 0 && (
+                <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma linha encontrada.</p>
+              )}
+              {filtered.map((line, i) => {
+                const isClient = line.speaker
+                  ? line.speaker.split(" ")[0].toLowerCase() === clientFirstName
+                  : false;
+                return (
+                  <div key={i} className="group flex gap-2 py-1 hover:bg-muted/30 rounded px-1 transition-colors">
+                    {line.timestamp && (
+                      <button
+                        className="text-[10px] tabular-nums text-muted-foreground/60 hover:text-primary shrink-0 mt-0.5 w-10 text-left"
+                        onClick={() => setProgress(tsToSeconds(line.timestamp!))}
+                        title="Ir para este momento"
+                      >
+                        {line.timestamp}
+                      </button>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      {line.speaker && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {line.speaker}
+                        </span>
+                      )}
+                      <p className={`text-sm leading-relaxed ${isClient ? "font-serif italic" : ""}`}>
+                        {line.text}
+                      </p>
+                      {line.tags.length > 0 && (
+                        <div className="flex gap-1 mt-0.5 flex-wrap">
+                          {line.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className={`text-[10px] px-1.5 py-0 rounded border font-medium ${TAG_COLORS[tag] ?? "border-border text-muted-foreground"}`}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Coluna direita — Destaques Donna IA */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between sticky top-0 bg-background py-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Destaques Donna IA
+                </p>
+                <Button
+                  size="sm"
+                  disabled={gen.isPending}
+                  onClick={() => { setSynthError(null); gen.mutate(); }}
+                  className="gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {gen.isPending ? "Sintetizando…" : "Sintetizar com Donna IA"}
+                </Button>
+              </div>
+
+              {gen.isPending && (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((k) => (
+                    <div key={k} className="h-16 bg-muted animate-pulse rounded-lg" />
+                  ))}
+                </div>
+              )}
+
+              {synthError && (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                  <span>{synthError}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto py-0.5 text-destructive hover:text-destructive"
+                    onClick={() => { setSynthError(null); gen.mutate(); }}
+                  >
+                    Tentar
+                  </Button>
+                </div>
+              )}
+
+              {!synthesis && !gen.isPending && !synthError && (
+                <div className="border border-dashed rounded-lg py-10 text-center">
+                  <Sparkles className="h-7 w-7 mx-auto text-muted-foreground/40 mb-2" />
+                  <p className="text-sm text-muted-foreground">Clique em "Sintetizar" para a Donna extrair os pontos-chave.</p>
+                </div>
+              )}
+
+              {highlights.length > 0 && (
+                <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                  {highlights.map((h, i) => (
+                    <Card key={i} className="border-secondary/40">
+                      <CardContent className="p-3">
+                        <p className="text-sm leading-relaxed font-serif italic">{h}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {synthesis && highlights.length === 0 && (
+                <Card className="border-secondary/40">
+                  <CardContent className="p-4">
+                    <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">{synthesis}</pre>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Notas rápidas (sempre visível) */}
+      <div className="pt-4 border-t">
+        <NotesPanel clientId={clientId} />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function NotesPanel({ clientId }: { clientId: string }) {
   const qc = useQueryClient();
