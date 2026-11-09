@@ -24,7 +24,7 @@ export const generateAI = createServerFn({ method: "POST" })
       .object({
         kind: z.enum(["resumo", "mensagem", "analise", "briefing"]),
         client_id: z.string().uuid(),
-        extra_prompt: z.string().max(2000).optional(),
+        extra_prompt: z.string().max(20000).optional(),
       })
       .parse(input),
   )
