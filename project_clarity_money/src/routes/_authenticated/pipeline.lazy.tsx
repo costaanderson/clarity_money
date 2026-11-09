@@ -47,7 +47,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ClientDetailSheet } from "@/features/clients/components/client-detail-sheet";
 
@@ -72,9 +72,8 @@ function PipelinePage() {
   const stagesQ = useQuery({
     queryKey: ["pipeline-stages"],
     queryFn: () => listPipelineStages(),
-    placeholderData: DEFAULT_PIPELINE_STAGES,
   });
-  const stages: PipelineStageRow[] = stagesQ.data ?? DEFAULT_PIPELINE_STAGES;
+  const stages: PipelineStageRow[] = stagesQ.data ?? [];
   const wonSlugs = stages.filter((s) => s.is_won).map((s) => s.slug);
 
   const [showWon, setShowWon] = useState(false);
@@ -222,7 +221,19 @@ function PipelinePage() {
       </header>
 
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {visibleStages.map((s) => {
+        {stagesQ.isLoading && (
+          <>
+            {[1, 2, 3, 4].map((k) => (
+              <div key={k} className="w-72 shrink-0 rounded-xl border bg-muted/30 p-3 animate-pulse">
+                <div className="h-4 w-32 bg-muted rounded mb-3" />
+                <div className="space-y-2">
+                  {[1, 2].map((j) => <div key={j} className="h-16 bg-muted rounded-lg" />)}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+        {!stagesQ.isLoading && visibleStages.map((s) => {
           const items = columns.get(s.slug) ?? [];
           const isOver = overStage === s.slug;
           const isWon = s.is_won;
@@ -378,11 +389,17 @@ function StagesSettingsSheet({
   const [editingLabel, setEditingLabel] = useState("");
   const [localStages, setLocalStages] = useState<PipelineStageRow[]>(stages);
 
+  const stagesRef = useRef(stages);
+  useEffect(() => { stagesRef.current = stages; }, [stages]);
+
   const reorder = useMutation({
     mutationFn: (orderedIds: string[]) =>
       reorderPipelineStages({ data: { orderedIds } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pipeline-stages"] }),
-    onError: (e: Error) => toast.error(parseError(e)),
+    onError: (e: Error) => {
+      setLocalStages(stagesRef.current); // reverte para a ordem confirmada pelo servidor
+      toast.error(parseError(e));
+    },
   });
 
   // Sincroniza estado local com o servidor, mas não enquanto uma mutation está pendente
