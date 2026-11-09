@@ -216,16 +216,21 @@ export async function readDriveTranscriptionsForClient(
       normalizeFolderName(item.name).includes("transcri"),
   );
 
-  if (!transcFolder) return [];
-
-  let transcFiles: DriveItem[];
-  try {
-    transcFiles = await listItemsInFolder(token, transcFolder.id);
-  } catch {
-    return [];
+  // Fallback: se não houver subpasta "transcrições", usa arquivos diretos na pasta do cliente
+  let candidateFiles: DriveItem[];
+  if (transcFolder) {
+    let transcFiles: DriveItem[];
+    try {
+      transcFiles = await listItemsInFolder(token, transcFolder.id);
+    } catch {
+      return [];
+    }
+    candidateFiles = transcFiles;
+  } else {
+    candidateFiles = clientItems;
   }
 
-  const supportedFiles = transcFiles
+  const supportedFiles = candidateFiles
     .filter((f) => SUPPORTED_MIME_TYPES.includes(f.mimeType))
     .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
     .slice(0, MAX_FILES_PER_CLIENT);
@@ -289,16 +294,21 @@ export async function readDriveTranscriptionsByClient(
         normalizeFolderName(item.name).includes("transcri"),
     );
 
-    if (!transcFolder) continue;
-
-    let transcFiles: DriveItem[];
-    try {
-      transcFiles = await listItemsInFolder(token, transcFolder.id);
-    } catch {
-      continue;
+    // Fallback: se não houver subpasta "transcrições", usa arquivos diretos na pasta do cliente
+    let candidateFiles: DriveItem[];
+    if (transcFolder) {
+      let transcFiles: DriveItem[];
+      try {
+        transcFiles = await listItemsInFolder(token, transcFolder.id);
+      } catch {
+        continue;
+      }
+      candidateFiles = transcFiles;
+    } else {
+      candidateFiles = clientItems;
     }
 
-    const supportedFiles = transcFiles
+    const supportedFiles = candidateFiles
       .filter((f) => SUPPORTED_MIME_TYPES.includes(f.mimeType))
       .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
       .slice(0, MAX_FILES_PER_CLIENT);
@@ -372,6 +382,10 @@ export async function previewDriveStructure(userId: string): Promise<DriveStruct
         hasTranscriptions = true;
         const transcFiles = await listItemsInFolder(token, transcFolder.id);
         fileCount = transcFiles.filter((f) => SUPPORTED_MIME_TYPES.includes(f.mimeType)).length;
+      } else {
+        // Fallback: arquivos diretamente na pasta do cliente
+        fileCount = children.filter((f) => SUPPORTED_MIME_TYPES.includes(f.mimeType)).length;
+        if (fileCount > 0) hasTranscriptions = true;
       }
     } catch {
       // subpasta inacessível — inclui sem transcrições
