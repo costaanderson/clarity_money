@@ -48,9 +48,7 @@ import {
   Mail,
   Mic,
   Moon,
-  Pause,
   Phone,
-  Play,
   Plus,
   RefreshCw,
   Save,
@@ -244,66 +242,117 @@ const NOTE_MAX = 4000;
 
 type TranscriptLine = {
   timestamp: string | null;
+  tsSeconds: number | null;
   speaker: string | null;
   text: string;
-  tags: string[];
+  chips: string[];
+  isClient: boolean;
 };
 
-function parseTranscript(content: string): TranscriptLine[] {
-  const results: TranscriptLine[] = [];
-  for (const raw of content.split("\n")) {
-    const line = raw.trim();
-    if (!line) continue;
+const CHIPS: { label: string; pattern: RegExp; color: string }[] = [
+  { label: "Estrutura Tributária & PJ", pattern: /tribut|pj\b|empresa|cnpj/i, color: "bg-purple-50 border-purple-300 text-purple-700" },
+  { label: "Planejamento Sucessório", pattern: /sucess|herdeiro|invent|testamento|espólio/i, color: "bg-rose-50 border-rose-300 text-rose-700" },
+  { label: "Aposentadoria", pattern: /aposentad|previdência|pgbl|vgbl|inss/i, color: "bg-blue-50 border-blue-300 text-blue-700" },
+  { label: "Dívidas", pattern: /d[íi]vida|endivid|parcela|juros|crédito/i, color: "bg-amber-50 border-amber-300 text-amber-700" },
+  { label: "Investimentos", pattern: /invest|carteira|ativo|rend|fundo|ação|b3/i, color: "bg-green-50 border-green-300 text-green-700" },
+  { label: "Patrimônio Imobiliário", pattern: /imóv|imobili|constru|terreno|aluguel/i, color: "bg-orange-50 border-orange-300 text-orange-700" },
+  { label: "Reserva de Emergência", pattern: /reserva|emergência|liquidez/i, color: "bg-cyan-50 border-cyan-300 text-cyan-700" },
+  { label: "Proteção & Seguros", pattern: /seguro|proteção|vida\s|risco\s+de/i, color: "bg-indigo-50 border-indigo-300 text-indigo-700" },
+  { label: "Comportamento Financeiro", pattern: /medo|ansied|comportamento|emocion|impulsiv|habit/i, color: "bg-pink-50 border-pink-300 text-pink-700" },
+];
 
-    // padrão: [HH:MM:SS] Nome: fala  ou  [HH:MM] Nome: fala  ou  Nome: fala
-    const withTs = line.match(/^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*([^:]+):\s*(.+)$/);
-    if (withTs) {
-      results.push({ timestamp: withTs[1], speaker: withTs[2].trim(), text: withTs[3].trim(), tags: detectTags(withTs[3]) });
-      continue;
-    }
-    const noTs = line.match(/^([A-ZÀ-Ü][^:]{1,40}):\s*(.+)$/);
-    if (noTs) {
-      results.push({ timestamp: null, speaker: noTs[1].trim(), text: noTs[2].trim(), tags: detectTags(noTs[2]) });
-      continue;
-    }
-    results.push({ timestamp: null, speaker: null, text: line, tags: detectTags(line) });
-  }
-  return results;
-}
-
-function detectTags(text: string): string[] {
-  const t = text.toLowerCase();
-  const tags: string[] = [];
-  if (/d[íi]vida|endivid/.test(t)) tags.push("Gatilho Financeiro");
-  if (/aposentad/.test(t)) tags.push("Aposentadoria");
-  if (/risco/.test(t)) tags.push("Objeção");
-  if (/aporte|invest/.test(t)) tags.push("Intenção de Aporte");
-  return tags;
+function detectChips(text: string): string[] {
+  return CHIPS.filter((c) => c.pattern.test(text)).map((c) => c.label);
 }
 
 function tsToSeconds(ts: string): number {
   const parts = ts.split(":").map(Number);
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + (parts[2] ?? 0);
+  return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
 }
 
-function formatSeconds(s: number): string {
-  const m = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+function parseTranscriptLines(content: string, clientFirstName: string): TranscriptLine[] {
+  const results: TranscriptLine[] = [];
+  for (const raw of content.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    const withTs = line.match(/^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*([^:]+):\s*(.+)$/);
+    if (withTs) {
+      const spk = withTs[2]!.trim();
+      const txt = withTs[3]!.trim();
+      results.push({
+        timestamp: withTs[1]!,
+        tsSeconds: tsToSeconds(withTs[1]!),
+        speaker: spk,
+        text: txt,
+        chips: detectChips(txt),
+        isClient: spk.split(" ")[0]!.toLowerCase() === clientFirstName,
+      });
+      continue;
+    }
+    const noTs = line.match(/^([A-ZÀ-Ü][^:]{1,40}):\s*(.+)$/);
+    if (noTs) {
+      const spk = noTs[1]!.trim();
+      const txt = noTs[2]!.trim();
+      results.push({
+        timestamp: null,
+        tsSeconds: null,
+        speaker: spk,
+        text: txt,
+        chips: detectChips(txt),
+        isClient: spk.split(" ")[0]!.toLowerCase() === clientFirstName,
+      });
+      continue;
+    }
+    results.push({ timestamp: null, tsSeconds: null, speaker: null, text: line, chips: detectChips(line), isClient: false });
+  }
+  return results;
 }
 
-const TAG_COLORS: Record<string, string> = {
-  "Gatilho Financeiro": "border-amber-400 text-amber-700 bg-amber-50",
-  "Aposentadoria": "border-blue-400 text-blue-700 bg-blue-50",
-  "Objeção": "border-red-400 text-red-700 bg-red-50",
-  "Intenção de Aporte": "border-green-500 text-green-700 bg-green-50",
-};
+function humanizeFilename(name: string): string {
+  return name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function ChipBadge({ label }: { label: string }) {
+  const chip = CHIPS.find((c) => c.label === label);
+  return (
+    <span className={`inline-flex items-center text-[10px] px-1.5 py-0 rounded border font-medium ${chip?.color ?? "bg-muted border-border text-muted-foreground"}`}>
+      {label}
+    </span>
+  );
+}
+
+type TriggerCard = { category: string; quote: string; diagnosis: string; recommendation: string; timestamp: string };
+
+function parseSynthesis(raw: string): { summary: string; triggers: TriggerCard[] } {
+  const summaryMatch = raw.match(/##\s*Resumo Executivo\s*\n([\s\S]*?)(?=##|$)/i);
+  const triggersMatch = raw.match(/##\s*Gatilhos Fiduciários\s*\n([\s\S]*?)(?=##|$)/i);
+  const summary = summaryMatch ? (summaryMatch[1] ?? "").trim() : "";
+  const triggers: TriggerCard[] = [];
+  if (triggersMatch) {
+    for (const line of (triggersMatch[1] ?? "").split("\n")) {
+      const m = line.match(/^-\s*(.+)$/);
+      if (!m) continue;
+      const parts = m[1]!.split("|").map((p) => p.trim());
+      if (parts.length >= 4) {
+        triggers.push({
+          category: parts[0] ?? "",
+          quote: (parts[1] ?? "").replace(/^"|"$/g, ""),
+          diagnosis: parts[2] ?? "",
+          recommendation: parts[3] ?? "",
+          timestamp: parts[4] ?? "—",
+        });
+      }
+    }
+  }
+  return { summary, triggers };
+}
 
 // ─── TranscriptionsPanel ─────────────────────────────────────────────────────
 
 function TranscriptionsPanel({ clientId, clientName }: { clientId: string; clientName: string }) {
   const qc = useQueryClient();
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const driveQ = useQuery({
     queryKey: ["drive-transcriptions", clientId],
@@ -314,312 +363,367 @@ function TranscriptionsPanel({ clientId, clientName }: { clientId: string; clien
   const files = driveQ.data ?? [];
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [search, setSearch] = useState("");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [selectedLineIdxs, setSelectedLineIdxs] = useState<Set<number>>(new Set());
   const [synthesis, setSynthesis] = useState("");
   const [synthError, setSynthError] = useState<string | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selectedFile = files[selectedIdx] ?? null;
-  const totalDuration = 2880; // 48 min simulado
+  const clientFirstName = clientName.split(" ")[0]!.toLowerCase();
 
-  // Reset ao trocar de arquivo
   useEffect(() => {
-    setProgress(0);
-    setIsPlaying(false);
+    setSelectedLineIdxs(new Set());
     setSynthesis("");
     setSynthError(null);
+    setSearch("");
   }, [selectedIdx]);
 
-  // Player simulado
   useEffect(() => {
-    if (isPlaying) {
-      intervalRef.current = setInterval(() => {
-        setProgress((p) => {
-          if (p >= totalDuration) { setIsPlaying(false); return totalDuration; }
-          return p + 1;
-        });
-      }, 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isPlaying]);
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
-  const lines = selectedFile ? parseTranscript(selectedFile.content) : [];
-  const clientFirstName = clientName.split(" ")[0].toLowerCase();
+  const lines = selectedFile ? parseTranscriptLines(selectedFile.content, clientFirstName) : [];
   const filtered = search.trim()
-    ? lines.filter((l) => l.text.toLowerCase().includes(search.toLowerCase()) || (l.speaker ?? "").toLowerCase().includes(search.toLowerCase()))
+    ? lines.filter((l) =>
+        l.text.toLowerCase().includes(search.toLowerCase()) ||
+        (l.speaker ?? "").toLowerCase().includes(search.toLowerCase()),
+      )
     : lines;
 
   const gen = useMutation({
-    mutationFn: () => generateAI({
-      data: {
-        client_id: clientId,
-        kind: "analise",
-        extra_prompt: selectedFile
-          ? `Analise a seguinte transcrição de sessão:\n\n${selectedFile.content}`
-          : undefined,
-      },
-    }),
-    onSuccess: (res) => {
-      setSynthesis(res.output);
-      setSynthError(null);
-    },
+    mutationFn: () =>
+      generateAI({
+        data: {
+          client_id: clientId,
+          kind: "analise",
+          extra_prompt: selectedFile
+            ? `Você é a Donna IA, analista financeira comportamental. Analise a transcrição abaixo e responda EXATAMENTE neste formato em português:\n\n## Resumo Executivo\n[2 a 3 frases resumindo o tom, as preocupações centrais e o estado emocional do cliente]\n\n## Gatilhos Fiduciários\n- [Categoria] | "[citação exata ou paráfrase próxima]" | [diagnóstico breve] | [recomendação acionável] | [timestamp ou "—"]\n\nUse apenas estas categorias: Estrutura Tributária & PJ, Planejamento Sucessório, Aposentadoria, Dívidas, Investimentos, Patrimônio Imobiliário, Reserva de Emergência, Proteção & Seguros, Comportamento Financeiro. Liste somente os gatilhos encontrados na transcrição.\n\n---\nTRANSCRIÇÃO:\n${selectedFile.content}`
+            : undefined,
+        },
+      }),
+    onSuccess: (res) => { setSynthesis(res.output); setSynthError(null); },
     onError: (e: Error) => setSynthError(e.message),
   });
 
-  // Parseia bullet points do output da IA para exibir como cards
-  const highlights = synthesis
-    .split("\n")
-    .filter((l) => l.trim().startsWith("-") || l.trim().startsWith("•") || l.trim().match(/^\d+\./))
-    .map((l) => l.replace(/^[-•\d.]\s*/, "").trim())
-    .filter(Boolean);
+  const { summary, triggers } = synthesis ? parseSynthesis(synthesis) : { summary: "", triggers: [] };
+
+  function toggleLine(idx: number) {
+    setSelectedLineIdxs((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  }
+
+  function handleSendToDiagnostic() {
+    const excerpts = [...selectedLineIdxs]
+      .sort((a, b) => a - b)
+      .map((i) => { const l = filtered[i]; return l ? `[${l.timestamp ?? "—"}] ${l.speaker ?? ""}: ${l.text}` : ""; })
+      .filter(Boolean)
+      .join("\n");
+    navigator.clipboard.writeText(excerpts).catch(() => {});
+    toast.success(
+      `${selectedLineIdxs.size} trecho${selectedLineIdxs.size > 1 ? "s" : ""} copiado${selectedLineIdxs.size > 1 ? "s" : ""} para o Diagnóstico`,
+      { description: "Cole no campo de diagnóstico do cliente." },
+    );
+    setSelectedLineIdxs(new Set());
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Drive Sync Card */}
-      <Card className="border-border/60">
-        <CardContent className="p-4 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-full bg-background border flex items-center justify-center shrink-0">
-              <Mic className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-medium text-sm">Google Drive · Transcrições</p>
-              {driveQ.isLoading ? (
-                <p className="text-xs text-muted-foreground">Verificando…</p>
-              ) : files.length > 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {files.length} arquivo{files.length > 1 ? "s" : ""} encontrado{files.length > 1 ? "s" : ""} para <strong>{clientName}</strong>
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Nenhuma transcrição encontrada no Drive para este cliente
-                </p>
-              )}
-            </div>
+    <div className="space-y-5">
+      {/* ── Drive Sync Row ── */}
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-[#E9E3D8] bg-[#FFF8F2] px-4 py-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-8 w-8 rounded-full bg-[#2A4C34]/10 flex items-center justify-center shrink-0">
+            <Mic className="h-4 w-4 text-[#2A4C34]" />
           </div>
-          <div className="flex items-center gap-2">
-            {files.length > 0 && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-emerald-700 border-emerald-300 bg-emerald-50 border">
-                Indexado
-              </Badge>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-[#2A4C34]">Google Drive · Transcrições</p>
+            {driveQ.isLoading ? (
+              <p className="text-xs text-muted-foreground">Verificando…</p>
+            ) : files.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {files.length} arquivo{files.length > 1 ? "s" : ""} para{" "}
+                <strong>{clientName}</strong>
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Nenhuma transcrição no Drive</p>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              disabled={driveQ.isFetching}
-              onClick={() => qc.invalidateQueries({ queryKey: ["drive-transcriptions", clientId] })}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${driveQ.isFetching ? "animate-spin" : ""}`} />
-              Sincronizar
-            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {files.length > 0 && (
+            <Badge className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border border-emerald-300 font-medium">
+              Indexado
+            </Badge>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-[#E9E3D8] text-[#2A4C34] hover:bg-[#2A4C34]/5"
+            disabled={driveQ.isFetching}
+            onClick={() => qc.invalidateQueries({ queryKey: ["drive-transcriptions", clientId] })}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${driveQ.isFetching ? "animate-spin" : ""}`} />
+            Sincronizar
+          </Button>
+        </div>
+      </div>
 
       {files.length > 0 && (
         <>
-          {/* Seletor de arquivo + player */}
-          <Card className="border-border/60">
-            <CardContent className="p-4 space-y-3">
-              {files.length > 1 && (
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">Transcrição</label>
-                  <Select
-                    value={String(selectedIdx)}
-                    onValueChange={(v) => setSelectedIdx(Number(v))}
-                  >
-                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {files.map((f, i) => (
-                        <SelectItem key={i} value={String(i)}>
-                          {f.name} · {new Date(f.modifiedTime).toLocaleDateString("pt-BR")}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {files.length === 1 && (
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{selectedFile?.name}</p>
-                    {selectedFile && (
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(selectedFile.modifiedTime).toLocaleDateString("pt-BR")}
-                      </p>
+          {/* ── Meeting Timeline ── */}
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {files.map((f, i) => {
+              const isActive = i === selectedIdx;
+              const hasSynth = isActive && !!synthesis;
+              return (
+                <button
+                  key={i}
+                  onClick={() => setSelectedIdx(i)}
+                  className={`shrink-0 flex flex-col gap-1.5 rounded-xl border px-4 py-3 text-left transition-all w-52 ${
+                    isActive
+                      ? "border-[#2A4C34] bg-[#2A4C34]/5 shadow-sm"
+                      : "border-[#E9E3D8] bg-[#FFF8F2] hover:border-[#2A4C34]/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-[#2A4C34]" : "text-muted-foreground"}`} />
+                    <span className="text-[11px] font-medium truncate">{humanizeFilename(f.name)}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(f.modifiedTime).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                  </span>
+                  <div className="flex gap-1 flex-wrap mt-0.5">
+                    {isActive && (
+                      <span className="text-[10px] px-1.5 py-0 rounded border border-[#2A4C34]/40 text-[#2A4C34] bg-[#2A4C34]/5 font-medium">
+                        ATIVA
+                      </span>
+                    )}
+                    {hasSynth && (
+                      <span className="text-[10px] px-1.5 py-0 rounded border border-amber-300 text-amber-700 bg-amber-50 font-medium">
+                        ✨ Sintetizado
+                      </span>
                     )}
                   </div>
-                </div>
-              )}
+                </button>
+              );
+            })}
+          </div>
 
-              {/* Player simulado */}
-              <div className="bg-muted/40 rounded-lg p-3 space-y-2">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setIsPlaying((p) => !p)}
-                    className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0 hover:bg-primary/90 transition-colors"
-                  >
-                    {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
-                  </button>
-                  <span className="text-xs tabular-nums text-muted-foreground w-20 shrink-0">
-                    {formatSeconds(progress)} / {formatSeconds(totalDuration)}
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={totalDuration}
-                    value={progress}
-                    onChange={(e) => setProgress(Number(e.target.value))}
-                    className="flex-1 h-1.5 accent-primary cursor-pointer"
-                  />
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">1.0×</Badge>
-                </div>
-              </div>
+          {/* ── Control Bar ── */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-48">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                ref={searchRef}
+                className="pl-8 h-8 text-sm border-[#E9E3D8] bg-[#FFF8F2] focus-visible:ring-[#2A4C34]/30"
+                placeholder="Buscar na transcrição…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/60 border border-border rounded px-1 py-0 hidden sm:block pointer-events-none">
+                ⌘K
+              </kbd>
+            </div>
+            <span className="text-xs text-muted-foreground shrink-0">
+              {filtered.length} bloco{filtered.length !== 1 ? "s" : ""}
+              {search && ` · "${search}"`}
+            </span>
+            <Button
+              size="sm"
+              disabled={gen.isPending || !selectedFile}
+              onClick={() => { setSynthError(null); gen.mutate(); }}
+              className="gap-1.5 bg-[#2A4C34] hover:bg-[#2A4C34]/90 text-white shrink-0"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {gen.isPending ? "Sintetizando…" : "✨ Sintetizar com Donna IA"}
+            </Button>
+          </div>
 
-              {/* Busca */}
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  className="pl-8 h-8 text-sm"
-                  placeholder="Buscar palavras na transcrição…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Split view */}
-          <div className="grid md:grid-cols-2 gap-4">
-            {/* Coluna esquerda — Transcrição */}
-            <div className="space-y-1 max-h-[520px] overflow-y-auto pr-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2 sticky top-0 bg-background py-1">
-                Transcrição · {filtered.length} linha{filtered.length !== 1 ? "s" : ""}
-                {search && ` · filtrado por "${search}"`}
+          {/* ── Split Viewer 60/40 ── */}
+          <div className="grid grid-cols-5 gap-4">
+            {/* Coluna esquerda — Transcrição (60%) */}
+            <div className="col-span-3 flex flex-col">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Transcrição
               </p>
-              {filtered.length === 0 && (
-                <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma linha encontrada.</p>
-              )}
-              {filtered.map((line, i) => {
-                const isClient = line.speaker
-                  ? line.speaker.split(" ")[0].toLowerCase() === clientFirstName
-                  : false;
-                return (
-                  <div key={i} className="group flex gap-2 py-1 hover:bg-muted/30 rounded px-1 transition-colors">
-                    {line.timestamp && (
-                      <button
-                        className="text-[10px] tabular-nums text-muted-foreground/60 hover:text-primary shrink-0 mt-0.5 w-10 text-left"
-                        onClick={() => setProgress(tsToSeconds(line.timestamp!))}
-                        title="Ir para este momento"
-                      >
-                        {line.timestamp}
-                      </button>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      {line.speaker && (
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          {line.speaker}
-                        </span>
-                      )}
-                      <p className={`text-sm leading-relaxed ${isClient ? "font-serif italic" : ""}`}>
-                        {line.text}
-                      </p>
-                      {line.tags.length > 0 && (
-                        <div className="flex gap-1 mt-0.5 flex-wrap">
-                          {line.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className={`text-[10px] px-1.5 py-0 rounded border font-medium ${TAG_COLORS[tag] ?? "border-border text-muted-foreground"}`}
-                            >
-                              {tag}
-                            </span>
-                          ))}
+              <div className="h-[520px] overflow-y-auto space-y-0.5 pr-1">
+                {filtered.length === 0 && (
+                  <p className="text-sm text-muted-foreground py-8 text-center">
+                    {search ? `Nenhum bloco com "${search}".` : "Sem conteúdo."}
+                  </p>
+                )}
+                {filtered.map((line, i) => {
+                  const isSelected = selectedLineIdxs.has(i);
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => toggleLine(i)}
+                      className={`group flex gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-colors select-none ${
+                        isSelected
+                          ? "bg-[#2A4C34]/10 border border-[#2A4C34]/20"
+                          : "hover:bg-[#FFF8F2]"
+                      }`}
+                    >
+                      <span className="text-[10px] tabular-nums text-muted-foreground/50 w-10 shrink-0 mt-0.5">
+                        {line.timestamp ?? ""}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        {line.speaker && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {line.speaker}
+                          </span>
+                        )}
+                        <p className={`text-sm leading-relaxed ${line.isClient ? "font-serif italic text-foreground/90" : "text-foreground/80"}`}>
+                          {line.text}
+                        </p>
+                        {line.chips.length > 0 && (
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {line.chips.map((chip) => (
+                              <ChipBadge key={chip} label={chip} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <div className="h-4 w-4 rounded-sm bg-[#2A4C34] flex items-center justify-center shrink-0 mt-0.5">
+                          <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
                         </div>
                       )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Coluna direita — Destaques Donna IA */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between sticky top-0 bg-background py-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Destaques Donna IA
-                </p>
-                <Button
-                  size="sm"
-                  disabled={gen.isPending}
-                  onClick={() => { setSynthError(null); gen.mutate(); }}
-                  className="gap-1.5"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {gen.isPending ? "Sintetizando…" : "Sintetizar com Donna IA"}
-                </Button>
+            {/* Coluna direita — Donna IA (40%) */}
+            <div className="col-span-2 flex flex-col">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Donna IA
+              </p>
+              <div className="h-[520px] overflow-y-auto space-y-3 pr-0.5">
+                {synthError && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive flex items-center justify-between gap-3">
+                    <span className="text-xs">{synthError}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto py-0.5 text-destructive hover:text-destructive text-xs"
+                      onClick={() => { setSynthError(null); gen.mutate(); }}
+                    >
+                      Tentar
+                    </Button>
+                  </div>
+                )}
+
+                {gen.isPending && (
+                  <div className="space-y-3">
+                    <div className="h-20 bg-[#FCF2E7] animate-pulse rounded-xl" />
+                    {[1, 2, 3].map((k) => (
+                      <div key={k} className="h-28 bg-[#FCF2E7] animate-pulse rounded-xl" />
+                    ))}
+                  </div>
+                )}
+
+                {!synthesis && !gen.isPending && !synthError && (
+                  <div className="flex flex-col items-center justify-center h-64 border border-dashed border-[#E9E3D8] rounded-xl bg-[#FFF8F2]">
+                    <Sparkles className="h-8 w-8 text-[#2A4C34]/30 mb-3" />
+                    <p className="text-sm text-muted-foreground text-center px-4">
+                      Clique em "Sintetizar" para a Donna extrair os pontos-chave desta sessão.
+                    </p>
+                  </div>
+                )}
+
+                {summary && (
+                  <div className="rounded-xl border border-[#2A4C34]/20 bg-[#2A4C34]/5 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#2A4C34] mb-2">
+                      Resumo Executivo
+                    </p>
+                    <p className="text-sm leading-relaxed text-foreground/80 font-serif italic">
+                      {summary}
+                    </p>
+                  </div>
+                )}
+
+                {triggers.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Gatilhos Fiduciários · {triggers.length}
+                    </p>
+                    {triggers.map((t, i) => {
+                      const chip = CHIPS.find((c) => c.label === t.category);
+                      return (
+                        <div key={i} className="rounded-xl border border-[#E9E3D8] bg-[#FFF8F2] p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className={`text-[10px] px-1.5 py-0 rounded border font-medium ${chip?.color ?? "bg-muted border-border text-muted-foreground"}`}>
+                              {t.category}
+                            </span>
+                            {t.timestamp && t.timestamp !== "—" && (
+                              <span className="text-[10px] text-muted-foreground tabular-nums">{t.timestamp}</span>
+                            )}
+                          </div>
+                          {t.quote && (
+                            <p className="text-xs font-serif italic text-foreground/80 border-l-2 border-[#2A4C34]/30 pl-2">
+                              "{t.quote}"
+                            </p>
+                          )}
+                          <p className="text-xs text-foreground/70">{t.diagnosis}</p>
+                          <p className="text-xs font-medium text-[#2A4C34]">→ {t.recommendation}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {synthesis && !summary && triggers.length === 0 && (
+                  <div className="rounded-xl border border-[#E9E3D8] bg-[#FFF8F2] p-4">
+                    <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed text-foreground/80">{synthesis}</pre>
+                  </div>
+                )}
               </div>
-
-              {gen.isPending && (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((k) => (
-                    <div key={k} className="h-16 bg-muted animate-pulse rounded-lg" />
-                  ))}
-                </div>
-              )}
-
-              {synthError && (
-                <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                  <span>{synthError}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto py-0.5 text-destructive hover:text-destructive"
-                    onClick={() => { setSynthError(null); gen.mutate(); }}
-                  >
-                    Tentar
-                  </Button>
-                </div>
-              )}
-
-              {!synthesis && !gen.isPending && !synthError && (
-                <div className="border border-dashed rounded-lg py-10 text-center">
-                  <Sparkles className="h-7 w-7 mx-auto text-muted-foreground/40 mb-2" />
-                  <p className="text-sm text-muted-foreground">Clique em "Sintetizar" para a Donna extrair os pontos-chave.</p>
-                </div>
-              )}
-
-              {highlights.length > 0 && (
-                <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
-                  {highlights.map((h, i) => (
-                    <Card key={i} className="border-secondary/40">
-                      <CardContent className="p-3">
-                        <p className="text-sm leading-relaxed font-serif italic">{h}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-
-              {synthesis && highlights.length === 0 && (
-                <Card className="border-secondary/40">
-                  <CardContent className="p-4">
-                    <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">{synthesis}</pre>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </div>
+
+          {/* ── Footer: Send to Diagnosis ── */}
+          {selectedLineIdxs.size > 0 && (
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-[#2A4C34]/30 bg-[#2A4C34]/5 px-4 py-3">
+              <p className="text-sm text-[#2A4C34] font-medium">
+                {selectedLineIdxs.size} trecho{selectedLineIdxs.size > 1 ? "s" : ""} selecionado{selectedLineIdxs.size > 1 ? "s" : ""}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-8"
+                  onClick={() => setSelectedLineIdxs(new Set())}
+                >
+                  Limpar
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-[#2A4C34] hover:bg-[#2A4C34]/90 text-white gap-1.5 h-8"
+                  onClick={handleSendToDiagnostic}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Enviar {selectedLineIdxs.size} trecho{selectedLineIdxs.size > 1 ? "s" : ""} para Diagnóstico
+                </Button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
-      {/* Notas rápidas (sempre visível) */}
-      <div className="pt-4 border-t">
+      {/* ── Notas rápidas ── */}
+      <div className="pt-4 border-t border-[#E9E3D8]">
         <NotesPanel clientId={clientId} />
       </div>
     </div>
